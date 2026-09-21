@@ -1,4 +1,4 @@
-# ThunderCat v4.12
+# ThunderCat v4.13
 
 ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
 daraus Thunderbird-Filterregeln.
@@ -281,3 +281,14 @@ Im ChatGPT-Text/JSON-Modus wurden zwei Komfortfunktionen ergänzt:
 - Das Antwort-Feld wurde von 360 auf 180 Pixel reduziert.
 
 Je nach Browser kann beim ersten Zugriff auf die Zwischenablage eine Berechtigungsabfrage erscheinen.
+
+
+## Neu in v4.13
+
+Schritt 3 enthält jetzt unten einen klaren Navigationsbereich:
+
+- `Zurück`
+- `Weiter zur Ordnerzuordnung`
+
+Der Weiter-Button wird erst aktiv, wenn eine KI-/ChatGPT-Klassifizierung
+erfolgreich übernommen wurde.

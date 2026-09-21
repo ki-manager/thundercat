@@ -1614,6 +1614,45 @@ Gib anschließend die vollständige CSV-Datei mit Semikolon als Trennzeichen zur
 
                 st.session_state.step = 4
                 st.rerun()
+
+    # -----------------------------------------------------
+    # Navigation
+    # -----------------------------------------------------
+
+    st.divider()
+
+    classifications_ready = bool(
+        st.session_state.classifications
+    )
+
+    col_back, col_next = st.columns(2)
+
+    with col_back:
+        if st.button(
+            "Zurück",
+            key="step3_back",
+        ):
+            st.session_state.step = 2
+            st.rerun()
+
+    with col_next:
+        if st.button(
+            "Weiter zur Ordnerzuordnung",
+            type="primary",
+            use_container_width=True,
+            disabled=not classifications_ready,
+            key="step3_next",
+        ):
+            st.session_state.step = 4
+            st.rerun()
+
+    if not classifications_ready:
+        st.caption(
+            "Der Weiter-Button wird aktiv, sobald "
+            "eine Klassifizierung übernommen wurde."
+        )
+
+
 elif st.session_state.step == 4:
 
     st.header(

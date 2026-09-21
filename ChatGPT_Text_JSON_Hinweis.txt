@@ -11,3 +11,8 @@ Neu in v4.12:
 - Button "Prompt kopieren"
 - Button "Daten einfügen"
 - beide Textfelder kompakter
+
+
+Neu in v4.13:
+- Nach erfolgreicher Klassifizierung führt ein eigener Button
+  "Weiter zur Ordnerzuordnung" zu Schritt 4.
