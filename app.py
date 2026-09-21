@@ -1186,13 +1186,19 @@ elif st.session_state.step == 3:
                     for address, classification in (
                         classifications.items()
                     ):
-                        original_sender_key = (
-                            sender_lookup.get(
-                                normalize_email_address(
+                        original_sender_key = next(
+                            (
+                                original_address
+                                for original_address
+                                in st.session_state.senders.keys()
+                                if normalize_email_address(
+                                    original_address
+                                )
+                                == normalize_email_address(
                                     address
-                                ),
-                                address,
-                            )
+                                )
+                            ),
+                            address,
                         )
 
                         sender_info = (

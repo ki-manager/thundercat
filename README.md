@@ -1,4 +1,4 @@
-# ThunderCat v4.14
+# ThunderCat v4.15
 
 ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
 daraus Thunderbird-Filterregeln.
@@ -311,3 +311,14 @@ vereinheitlicht.
 
 Der ChatGPT-Prompt weist außerdem ausdrücklich darauf hin, E-Mail-Adressen nicht
 als Markdown-Link auszugeben.
+
+
+## Fix in v4.15
+
+Fehler behoben:
+
+`name 'sender_lookup' is not defined`
+
+Die JSON-Importvorschau ermittelt den ursprünglichen Absender jetzt direkt über
+die normalisierte E-Mail-Adresse. Die vorhandene CSV-Importlogik bleibt
+unverändert.

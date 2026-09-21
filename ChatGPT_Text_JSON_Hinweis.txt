@@ -22,3 +22,7 @@ Neu in v4.14:
 - E-Mail-Adressen aus ChatGPT-Antworten werden normalisiert.
 - Markdown-Mailto-Links werden automatisch auf reine E-Mail-Adressen reduziert.
 - Der Prompt verbietet Markdown-Links im Feld "email" ausdrücklich.
+
+
+Fix in v4.15:
+- Fehler "sender_lookup is not defined" beim JSON-Import behoben.
