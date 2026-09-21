@@ -5,3 +5,9 @@ die aktuell gelesenen Absenderdaten. Deshalb gibt es keinen statischen Prompt,
 der separat gepflegt werden muss.
 
 Die CSV-Variante bleibt weiterhin als Alternative verfügbar.
+
+
+Neu in v4.12:
+- Button "Prompt kopieren"
+- Button "Daten einfügen"
+- beide Textfelder kompakter

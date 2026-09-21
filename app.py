@@ -843,8 +843,58 @@ elif st.session_state.step == 3:
             st.text_area(
                 "Kompletten Text kopieren und in ChatGPT einfügen",
                 value=chatgpt_json_prompt,
-                height=420,
+                height=210,
                 key="chatgpt_json_prompt_text",
+            )
+
+            st.components.v1.html(
+                """
+                <button
+                    id="copyPrompt"
+                    style="
+                        border:1px solid #d0d0d0;
+                        border-radius:8px;
+                        padding:8px 14px;
+                        background:white;
+                        cursor:pointer;
+                        font-size:14px;
+                    "
+                >
+                    📋 Prompt kopieren
+                </button>
+
+                <script>
+                const button = document.getElementById("copyPrompt");
+
+                button.addEventListener("click", async () => {
+                    const textareas = parent.document.querySelectorAll("textarea");
+                    let promptArea = null;
+
+                    for (const area of textareas) {
+                        if (
+                            area.getAttribute("aria-label") ===
+                            "Kompletten Text kopieren und in ChatGPT einfügen"
+                        ) {
+                            promptArea = area;
+                            break;
+                        }
+                    }
+
+                    if (!promptArea) {
+                        button.innerText = "Textfeld nicht gefunden";
+                        return;
+                    }
+
+                    try {
+                        await navigator.clipboard.writeText(promptArea.value);
+                        button.innerText = "✓ Prompt kopiert";
+                    } catch (error) {
+                        button.innerText = "Kopieren nicht möglich";
+                    }
+                });
+                </script>
+                """,
+                height=45,
             )
 
             st.caption(
@@ -859,7 +909,7 @@ elif st.session_state.step == 3:
             json_response = st.text_area(
                 "ChatGPT-Antwort",
                 value="",
-                height=360,
+                height=180,
                 placeholder=(
                     '[\n'
                     '  {\n'
@@ -875,6 +925,77 @@ elif st.session_state.step == 3:
                     ']'
                 ),
                 key="chatgpt_json_response_text",
+            )
+
+            st.components.v1.html(
+                """
+                <button
+                    id="pasteData"
+                    style="
+                        border:1px solid #d0d0d0;
+                        border-radius:8px;
+                        padding:8px 14px;
+                        background:white;
+                        cursor:pointer;
+                        font-size:14px;
+                    "
+                >
+                    📥 Daten einfügen
+                </button>
+
+                <script>
+                const button = document.getElementById("pasteData");
+
+                button.addEventListener("click", async () => {
+                    try {
+                        const text = await navigator.clipboard.readText();
+                        const textareas = parent.document.querySelectorAll("textarea");
+                        let responseArea = null;
+
+                        for (const area of textareas) {
+                            if (
+                                area.getAttribute("aria-label") ===
+                                "ChatGPT-Antwort"
+                            ) {
+                                responseArea = area;
+                                break;
+                            }
+                        }
+
+                        if (!responseArea) {
+                            button.innerText = "Textfeld nicht gefunden";
+                            return;
+                        }
+
+                        const setter = Object.getOwnPropertyDescriptor(
+                            parent.HTMLTextAreaElement.prototype,
+                            "value"
+                        ).set;
+
+                        setter.call(responseArea, text);
+
+                        responseArea.dispatchEvent(
+                            new Event("input", {
+                                bubbles: true
+                            })
+                        );
+
+                        responseArea.dispatchEvent(
+                            new Event("change", {
+                                bubbles: true
+                            })
+                        );
+
+                        responseArea.focus();
+
+                        button.innerText = "✓ Daten eingefügt";
+                    } catch (error) {
+                        button.innerText = "Einfügen nicht möglich";
+                    }
+                });
+                </script>
+                """,
+                height=45,
             )
 
             if json_response.strip():

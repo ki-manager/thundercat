@@ -1,4 +1,4 @@
-# ThunderCat v4.11
+# ThunderCat v4.12
 
 ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
 daraus Thunderbird-Filterregeln.
@@ -269,3 +269,15 @@ Ablauf:
 5. ThunderCat validiert die Antwort und übernimmt die Klassifizierung.
 
 Die bisherige CSV-Methode bleibt als Alternative erhalten.
+
+
+## Neu in v4.12
+
+Im ChatGPT-Text/JSON-Modus wurden zwei Komfortfunktionen ergänzt:
+
+- `Prompt kopieren` kopiert den vollständigen Prompt in die Zwischenablage.
+- `Daten einfügen` übernimmt die ChatGPT-Antwort aus der Zwischenablage.
+- Das Prompt-Feld wurde von 420 auf 210 Pixel reduziert.
+- Das Antwort-Feld wurde von 360 auf 180 Pixel reduziert.
+
+Je nach Browser kann beim ersten Zugriff auf die Zwischenablage eine Berechtigungsabfrage erscheinen.
