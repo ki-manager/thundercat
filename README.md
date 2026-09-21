@@ -1,4 +1,4 @@
-# ThunderCat v4.6
+# ThunderCat v4.6.1
 
 ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
 daraus Thunderbird-Filterregeln.
@@ -198,12 +198,9 @@ Die CSV verwendet Semikolon als Trennzeichen und UTF-8 mit BOM.
 Die ChatGPT-CSV-Hilfsfunktionen sind jetzt direkt in `app.py` definiert. Der NameError bei `build_chatgpt_export_df()` ist behoben.
 
 
-## Neu in v4.6
+## Fix v4.6.1
 
-ChatGPT ist jetzt der Standard-Provider in der linken Seitenleiste.
-
-Bei Auswahl von **ChatGPT** werden keine weiteren Provider-Einstellungen angezeigt:
-kein API-Key, kein Modell und keine Batch-Größe. Schritt 3 verwendet automatisch
-den CSV-Workflow.
-
-Bei **OpenAI**, **Gemini** und **Ollama** bleiben die bisherigen Einstellungen erhalten.
+- ChatGPT ist jetzt tatsächlich der erste Eintrag unter KI-Provider.
+- ChatGPT ist voreingestellt.
+- Bei ChatGPT werden keine weiteren Provider-Optionen angezeigt.
+- Schritt 3 verwendet bei ChatGPT automatisch den CSV-Workflow.

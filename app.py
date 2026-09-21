@@ -150,7 +150,7 @@ DEFAULTS = {
     "imap_port": 993,
     "imap_username": "",
     "stats": None,
-    "provider": DEFAULT_PROVIDER,
+    "provider": "ChatGPT",
     "api_log": [],
     "live_results": {},
     "classification_method": "Direkt per KI-API",
@@ -171,26 +171,34 @@ with st.sidebar:
 
     st.divider()
     st.subheader("KI-Provider")
-    providers = ["OpenAI", "Gemini", "Ollama"]
+    providers = ["ChatGPT", "OpenAI", "Gemini", "Ollama"]
     provider = st.selectbox(
         "Provider",
         providers,
-        index=providers.index(st.session_state.provider if st.session_state.provider in providers else "OpenAI"),
+        index=providers.index(st.session_state.provider if st.session_state.provider in providers else "ChatGPT"),
     )
     st.session_state.provider = provider
 
-    if provider == "OpenAI":
+    if provider == "ChatGPT":
+        api_key = None
+        model = None
+        batch_size = None
+        ollama_url = None
+
+    elif provider == "OpenAI":
         api_key = st.text_input("OpenAI API-Key", type="password")
         model = st.text_input("OpenAI-Modell", value=OPENAI_MODEL)
         batch_size = st.number_input("Batch-Größe", 1, 100, BATCH_SIZE_OPENAI)
         ollama_url = None
         st.warning("Absender, Domain und Beispiel-Betreffzeilen werden zur Klassifizierung an OpenAI übertragen.")
+
     elif provider == "Gemini":
         api_key = st.text_input("Gemini API-Key", type="password")
         model = st.text_input("Gemini-Modell", value=GEMINI_MODEL)
         batch_size = st.number_input("Batch-Größe", 1, 100, BATCH_SIZE_GEMINI)
         ollama_url = None
         st.warning("Absender, Domain und Beispiel-Betreffzeilen werden zur Klassifizierung an Google übertragen.")
+
     else:
         api_key = None
         ollama_url = st.text_input("Ollama-URL", value=OLLAMA_URL)
@@ -286,24 +294,13 @@ elif st.session_state.step == 3:
 
     st.header("3. KI-Klassifizierung")
 
-    classification_method = st.radio(
-        "Art der Klassifizierung",
-        [
-            "Direkt per KI-API",
-            "CSV über ChatGPT klassifizieren",
-        ],
-        index=(
-            0
-            if st.session_state.classification_method
-            == "Direkt per KI-API"
-            else 1
-        ),
-        horizontal=True,
+    classification_method = (
+        "CSV über ChatGPT klassifizieren"
+        if provider == "ChatGPT"
+        else "Direkt per KI-API"
     )
 
-    st.session_state.classification_method = (
-        classification_method
-    )
+    st.session_state.classification_method = classification_method
 
     # =====================================================
     # VARIANTE A: DIREKT PER API
