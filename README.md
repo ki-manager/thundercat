@@ -1,4 +1,4 @@
-# ThunderCat v4.15
+# ThunderCat v4.16
 
 ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
 daraus Thunderbird-Filterregeln.
@@ -322,3 +322,37 @@ Fehler behoben:
 Die JSON-Importvorschau ermittelt den ursprünglichen Absender jetzt direkt über
 die normalisierte E-Mail-Adresse. Die vorhandene CSV-Importlogik bleibt
 unverändert.
+## Fix in v4.16: Thunderbird-Zielordner korrekt codieren
+
+Die `actionValue`-URI in `msgFilterRules.dat` verwendet für den Ordnerpfad
+jetzt IMAP Modified UTF-7 – genau wie Thunderbird selbst.
+
+Beispiel:
+
+```text
+INBOX/Behörden
+```
+
+wird in der Filterdatei zu:
+
+```text
+INBOX/Beh&APY-rden
+```
+
+Der Benutzername bleibt weiterhin URL-codiert:
+
+```text
+info@ki38.de
+```
+
+wird zu:
+
+```text
+info%40ki38.de
+```
+
+Eine vollständige Ziel-URI sieht damit z. B. so aus:
+
+```text
+imap://info%40ki38.de@imap.goneo.de/INBOX/Beh&APY-rden
+```

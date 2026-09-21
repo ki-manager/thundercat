@@ -1,29 +1,42 @@
 from urllib.parse import quote
 
+from imap_reader import encode_imap_utf7
+
 
 def build_imap_uri(
     server,
     username,
     folder,
 ):
+    """
+    Baut die Thunderbird-Ziel-URI für msgFilterRules.dat.
+
+    Wichtig:
+    - Benutzername: URL-Encoding, z. B. @ -> %40
+    - Ordnerpfad: IMAP Modified UTF-7, wie Thunderbird ihn selbst speichert
+
+    Beispiel:
+        INBOX/Behörden
+    wird zu:
+        INBOX/Beh&APY-rden
+    """
+
     safe_user = quote(
         username,
         safe="",
     )
 
-    safe_folder = "/".join(
-        quote(
-            part,
-            safe="",
+    thunderbird_folder = (
+        encode_imap_utf7(
+            folder.strip("/")
         )
-        for part in folder.strip("/").split("/")
     )
 
     return (
         f"imap://"
         f"{safe_user}"
         f"@{server}/"
-        f"{safe_folder}"
+        f"{thunderbird_folder}"
     )
 
 
