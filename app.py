@@ -31,9 +31,10 @@ st.set_page_config(
 )
 
 col_logo, col_title = st.columns(
-    [0.7, 6],
+    [0.4, 6],
     vertical_alignment="center",
 )
+
 
 with col_logo:
     st.image(
