@@ -1,4 +1,4 @@
-# ThunderCat v4.8
+# ThunderCat v4.10
 
 ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
 daraus Thunderbird-Filterregeln.
@@ -243,3 +243,16 @@ Thunderbird-Zielordner.
 - Die Zuordnung kann optional in einem aufklappbaren Kontrollbereich
   angezeigt werden.
 - Modified UTF-7 für IMAP-Ordner mit Umlauten ist integriert.
+## Neu in v4.9
+
+Schritt 5 enthält nach dem Download der `msgFilterRules.dat` jetzt direkt eine
+kurze Anleitung zur Installation in Thunderbird inklusive Profilpfad, typischem
+Goneo-IMAP-Unterordner und Sicherungshinweis für bestehende Filter.
+## Neu in v4.10
+
+In Schritt 5 sind die umfangreichen Vorschauen standardmäßig eingeklappt:
+
+- `Regeln prüfen und Vorschau`
+- `msgFilterRules.dat Vorschau`
+
+Die Erstellung der Filterdatei und die Thunderbird-Anleitung bleiben direkt sichtbar.

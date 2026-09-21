@@ -1581,25 +1581,45 @@ elif st.session_state.step == 5:
     if rules_df.empty:
         st.warning("Es wurden keine Regeln erzeugt.")
     else:
-        st.dataframe(
-            rules_df[["email", "category", "confidence", "count", "folder", "reason"]],
-            use_container_width=True,
-            hide_index=True,
-        )
-        st.download_button(
-            "Regelvorschau als CSV herunterladen",
-            data=rules_df.to_csv(index=False, sep=";").encode("utf-8-sig"),
-            file_name="filter_preview.csv",
-            mime="text/csv",
-        )
+        with st.expander(
+            "Regeln prüfen und Vorschau",
+            expanded=False,
+        ):
+            st.dataframe(
+                rules_df[["email", "category", "confidence", "count", "folder", "reason"]],
+                use_container_width=True,
+                hide_index=True,
+            )
+
+            st.download_button(
+                "Regelvorschau als CSV herunterladen",
+                data=rules_df.to_csv(index=False, sep=";").encode("utf-8-sig"),
+                file_name="filter_preview.csv",
+                mime="text/csv",
+            )
 
         if st.session_state.filter_text is None:
-            if st.button("Jetzt msgFilterRules.dat erzeugen", type="primary", use_container_width=True):
-                st.session_state.filter_text = generate_filter_text(st.session_state.rules)
+            if st.button(
+                "Jetzt msgFilterRules.dat erzeugen",
+                type="primary",
+                use_container_width=True,
+            ):
+                st.session_state.filter_text = generate_filter_text(
+                    st.session_state.rules
+                )
                 st.rerun()
         else:
             st.success("Filterdatei wurde erzeugt.")
-            st.text_area("Vorschau", st.session_state.filter_text, height=350)
+
+            with st.expander(
+                "msgFilterRules.dat Vorschau",
+                expanded=False,
+            ):
+                st.text_area(
+                    "Vorschau",
+                    st.session_state.filter_text,
+                    height=350,
+                )
             st.download_button(
                 "msgFilterRules.dat herunterladen",
                 data=st.session_state.filter_text.encode("utf-8"),
@@ -1607,6 +1627,34 @@ elif st.session_state.step == 5:
                 mime="text/plain",
                 type="primary",
                 use_container_width=True,
+            )
+
+            st.divider()
+
+            st.subheader(
+                "So fügst du die Filter in Thunderbird ein"
+            )
+
+            st.markdown(
+                """
+1. **Thunderbird komplett beenden.**
+2. Die heruntergeladene Datei `msgFilterRules.dat` bereithalten.
+3. Unter Windows `Win + R` drücken und folgenden Pfad öffnen:
+
+   `%APPDATA%\\Thunderbird\\Profiles\\`
+
+4. Den verwendeten Profilordner öffnen.
+5. Danach in den Ordner des IMAP-Kontos wechseln, meist:
+
+   `ImapMail\\imap.goneo.de`
+
+6. Eine vorhandene `msgFilterRules.dat` **vorher sichern**.
+7. Die von ThunderCat erzeugte `msgFilterRules.dat` in diesen Ordner kopieren bzw. ersetzen.
+8. Thunderbird wieder starten.
+9. Die Regeln findest du anschließend unter **Extras → Nachrichtenfilter** beim betreffenden Konto.
+
+**Wichtig:** Wenn bereits eigene Filter vorhanden sind, solltest du die bestehende Datei nicht einfach überschreiben, da sonst vorhandene Regeln verloren gehen können.
+"""
             )
 
             if st.button("Neue Analyse starten"):
