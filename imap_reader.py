@@ -199,3 +199,95 @@ def refresh_folder_structure(server, port, username, password):
             imap.logout()
         except Exception:
             pass
+
+
+def detect_imap_separator(imap):
+    """Ermittelt den IMAP-Hierarchie-Trenner, z. B. '/' oder '.'."""
+    status, data = imap.list()
+
+    if status != "OK" or not data:
+        return "/"
+
+    for item in data:
+        if not item:
+            continue
+
+        text = item.decode(errors="replace")
+
+        # Typisches LIST-Format:
+        # (\HasNoChildren) "/" "INBOX"
+        match = re.search(
+            r'\([^\)]*\)\s+"([^"]*)"\s+"[^"]+"',
+            text,
+        )
+
+        if match:
+            separator = match.group(1)
+
+            if separator:
+                return separator
+
+    return "/"
+
+
+def create_missing_folders_under_inbox(
+    server,
+    port,
+    username,
+    password,
+    folder_names,
+    parent="INBOX",
+):
+    """Legt fehlende Ordner direkt unterhalb von INBOX an."""
+    imap = connect_imap(
+        server,
+        port,
+        username,
+        password,
+    )
+
+    results = {}
+
+    try:
+        separator = detect_imap_separator(imap)
+        existing = set(get_folders(imap))
+
+        for folder_name in folder_names:
+            if not folder_name:
+                continue
+
+            full_folder = f"{parent}{separator}{folder_name}"
+
+            if full_folder in existing:
+                results[folder_name] = {
+                    "folder": full_folder,
+                    "success": True,
+                    "created": False,
+                    "message": "Bereits vorhanden",
+                }
+                continue
+
+            status, response = imap.create(full_folder)
+            success = status == "OK"
+
+            results[folder_name] = {
+                "folder": full_folder,
+                "success": success,
+                "created": success,
+                "message": (
+                    "Angelegt"
+                    if success
+                    else str(response)
+                ),
+            }
+
+            if success:
+                existing.add(full_folder)
+
+        return results, separator
+
+    finally:
+        try:
+            imap.logout()
+        except Exception:
+            pass

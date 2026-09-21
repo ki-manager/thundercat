@@ -8,7 +8,11 @@ from config import (
     BATCH_SIZE_OPENAI, BATCH_SIZE_GEMINI, BATCH_SIZE_OLLAMA,
     CATEGORIES, CATEGORY_LABELS,
 )
-from imap_reader import scan_mail_headers, refresh_folder_structure
+from imap_reader import (
+    scan_mail_headers,
+    refresh_folder_structure,
+    create_missing_folders_under_inbox,
+)
 from provider_client import test_provider
 from folder_utils import auto_map_categories
 from classifier import classify_all
@@ -146,7 +150,7 @@ DEFAULTS = {
     "total_mails": 0,
     "folders": [],
     "category_to_folder": {},
-    "imap_server": "",
+    "imap_server": "imap.goneo.de",
     "imap_port": 993,
     "imap_username": "",
     "stats": None,
@@ -164,7 +168,7 @@ with st.sidebar:
     st.header("Einstellungen")
 
     st.subheader("IMAP")
-    imap_server = st.text_input("IMAP-Server", value=st.session_state.imap_server, placeholder="imap.example.de")
+    imap_server = st.text_input("IMAP-Server", value=st.session_state.imap_server or "imap.goneo.de", placeholder="imap.example.de")
     imap_port = st.number_input("IMAP-Port", min_value=1, max_value=65535, value=int(st.session_state.imap_port))
     imap_username = st.text_input("Benutzername / E-Mail", value=st.session_state.imap_username, placeholder="name@example.de")
     imap_password = st.text_input("Passwort", type="password")
@@ -1097,81 +1101,199 @@ Gib mir anschließend die vollständige bearbeitete CSV-Datei mit Semikolon als 
                 st.session_state.step = 4
                 st.rerun()
 elif st.session_state.step == 4:
+
     st.header("4. Thunderbird-Zielordner prüfen")
 
     st.write(
-        "Die Kategorienamen entsprechen jetzt direkt den gewünschten "
-        "Thunderbird-Ordnernamen. ThunderCat versucht deshalb, vorhandene "
-        "IMAP-Ordner automatisch zuzuordnen."
+        "ThunderCat prüft die vorhandenen IMAP-Ordner. "
+        "Fehlende Kategorien können automatisch als Unterordner "
+        "von INBOX angelegt werden."
     )
 
-    col_refresh, col_info = st.columns([1.4, 3])
+    folders = st.session_state.folders or []
+
+    auto_mapping, missing, ambiguous = auto_map_categories(
+        CATEGORIES,
+        folders,
+    )
+
+    missing_without_unclear = [
+        category
+        for category in missing
+        if category != "Unklar"
+    ]
+
+    col_refresh, col_create = st.columns(2)
 
     with col_refresh:
         refresh_clicked = st.button(
             "🔄 IMAP-Struktur erneut prüfen",
-            type="primary",
             use_container_width=True,
         )
 
-    with col_info:
-        st.caption(
-            "Die Ordnerliste wird direkt vom IMAP-Server neu geladen "
-            "und danach automatisch erneut zugeordnet."
+    with col_create:
+        create_clicked = st.button(
+            "➕ Fehlende Ordner unter INBOX anlegen",
+            type="primary",
+            use_container_width=True,
+            disabled=not bool(missing_without_unclear),
         )
 
     if refresh_clicked:
+
         if not imap_password:
             st.error(
-                "Bitte links in der Seitenleiste das IMAP-Passwort "
-                "erneut eingeben."
+                "Bitte links in der Seitenleiste das "
+                "IMAP-Passwort erneut eingeben."
             )
         else:
             try:
-                with st.spinner("Lese aktuelle IMAP-Ordnerstruktur …"):
-                    refreshed_folders = refresh_folder_structure(
-                        server=st.session_state.imap_server or imap_server,
-                        port=st.session_state.imap_port or imap_port,
-                        username=st.session_state.imap_username or imap_username,
-                        password=imap_password,
-                    )
+                refreshed_folders = refresh_folder_structure(
+                    server=st.session_state.imap_server or imap_server,
+                    port=st.session_state.imap_port or imap_port,
+                    username=st.session_state.imap_username or imap_username,
+                    password=imap_password,
+                )
 
                 st.session_state.folders = refreshed_folders
                 st.session_state.category_to_folder = {}
 
-                # alte Selectbox-Werte entfernen, damit die automatische
-                # Zuordnung sichtbar wird
                 for category in CATEGORIES:
-                    st.session_state.pop(f"folder_{category}", None)
+                    st.session_state.pop(
+                        f"folder_{category}",
+                        None,
+                    )
 
                 st.success(
                     f"IMAP-Struktur aktualisiert: "
                     f"{len(refreshed_folders)} Ordner gefunden."
                 )
+
                 st.rerun()
 
             except Exception as exc:
-                st.error(f"IMAP-Fehler beim erneuten Prüfen: {exc}")
+                st.error(
+                    f"IMAP-Fehler beim erneuten Prüfen: {exc}"
+                )
 
+    if create_clicked:
+
+        if not imap_password:
+            st.error(
+                "Bitte links in der Seitenleiste das "
+                "IMAP-Passwort erneut eingeben."
+            )
+        else:
+            try:
+                with st.spinner(
+                    "Fehlende Ordner werden unter INBOX angelegt …"
+                ):
+                    create_results, separator = (
+                        create_missing_folders_under_inbox(
+                            server=st.session_state.imap_server or imap_server,
+                            port=st.session_state.imap_port or imap_port,
+                            username=st.session_state.imap_username or imap_username,
+                            password=imap_password,
+                            folder_names=missing_without_unclear,
+                            parent="INBOX",
+                        )
+                    )
+
+                result_rows = []
+
+                for category, result in create_results.items():
+                    result_rows.append({
+                        "Kategorie": category,
+                        "IMAP-Ordner": result["folder"],
+                        "Status": (
+                            "OK"
+                            if result["success"]
+                            else "FEHLER"
+                        ),
+                        "Ergebnis": result["message"],
+                    })
+
+                if result_rows:
+                    st.dataframe(
+                        pd.DataFrame(result_rows),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+
+                success_count = sum(
+                    1
+                    for result in create_results.values()
+                    if result["success"]
+                )
+
+                error_count = (
+                    len(create_results)
+                    - success_count
+                )
+
+                if success_count:
+                    st.success(
+                        f"{success_count} Ordner wurden erfolgreich "
+                        f"angelegt bzw. waren bereits vorhanden. "
+                        f"IMAP-Trenner: '{separator}'"
+                    )
+
+                if error_count:
+                    st.error(
+                        f"{error_count} Ordner konnten nicht "
+                        f"angelegt werden."
+                    )
+
+                # Struktur sofort neu einlesen
+                refreshed_folders = refresh_folder_structure(
+                    server=st.session_state.imap_server or imap_server,
+                    port=st.session_state.imap_port or imap_port,
+                    username=st.session_state.imap_username or imap_username,
+                    password=imap_password,
+                )
+
+                st.session_state.folders = refreshed_folders
+                st.session_state.category_to_folder = {}
+
+                for category in CATEGORIES:
+                    st.session_state.pop(
+                        f"folder_{category}",
+                        None,
+                    )
+
+                st.rerun()
+
+            except Exception as exc:
+                st.error(
+                    f"Fehler beim Anlegen der IMAP-Ordner: {exc}"
+                )
+
+    # Nach möglichen Aktionen aktuelle Struktur verwenden
     folders = st.session_state.folders or []
 
     if not folders:
         st.error(
-            "Es wurden keine IMAP-Ordner gefunden. "
-            "Bitte die IMAP-Struktur erneut prüfen."
+            "Es wurden keine IMAP-Ordner gefunden."
         )
 
     else:
-        auto_mapping, missing, ambiguous = auto_map_categories(
-            CATEGORIES,
-            folders,
+        auto_mapping, missing, ambiguous = (
+            auto_map_categories(
+                CATEGORIES,
+                folders,
+            )
         )
 
-        # Bereits manuell gewählte Werte haben Vorrang.
-        current_mapping = dict(st.session_state.category_to_folder or {})
+        current_mapping = dict(
+            st.session_state.category_to_folder
+            or {}
+        )
 
         for category, folder in auto_mapping.items():
-            if not current_mapping.get(category) and folder:
+            if (
+                not current_mapping.get(category)
+                and folder
+            ):
                 current_mapping[category] = folder
 
         st.subheader("Automatischer Abgleich")
@@ -1184,40 +1306,73 @@ elif st.session_state.step == 4:
         )
 
         metric1, metric2, metric3 = st.columns(3)
-        metric1.metric("IMAP-Ordner", len(folders))
-        metric2.metric("Automatisch zugeordnet", found_count)
-        metric3.metric("Fehlende Kategorien", len(missing) + len(ambiguous))
 
-        if missing:
+        metric1.metric(
+            "IMAP-Ordner",
+            len(folders),
+        )
+
+        metric2.metric(
+            "Automatisch zugeordnet",
+            found_count,
+        )
+
+        metric3.metric(
+            "Fehlende Kategorien",
+            len([
+                category
+                for category in missing
+                if category != "Unklar"
+            ]) + len(ambiguous),
+        )
+
+        missing_without_unclear = [
+            category
+            for category in missing
+            if category != "Unklar"
+        ]
+
+        if missing_without_unclear:
             st.warning(
-                "Diese gewünschten Ordner fehlen auf dem IMAP-Server:\n\n"
-                + "\n".join(f"• {name}" for name in missing)
+                "Diese Ordner fehlen unter INBOX:\n\n"
+                + "\n".join(
+                    f"• INBOX/{name}"
+                    for name in missing_without_unclear
+                )
             )
 
         if ambiguous:
             details = []
+
             for category, matches in ambiguous.items():
                 details.append(
-                    f"• {category}: " + ", ".join(matches)
+                    f"• {category}: "
+                    + ", ".join(matches)
                 )
+
             st.warning(
-                "Für diese Kategorien wurden mehrere passende Ordner gefunden. "
-                "Bitte manuell auswählen:\n\n"
+                "Für diese Kategorien wurden mehrere "
+                "passende Ordner gefunden:\n\n"
                 + "\n".join(details)
             )
 
-        if not missing and not ambiguous:
+        if (
+            not missing_without_unclear
+            and not ambiguous
+        ):
             st.success(
-                "Alle Kategorien konnten einem vorhandenen IMAP-Ordner "
-                "automatisch zugeordnet werden."
+                "Alle benötigten Kategorien konnten "
+                "einem vorhandenen IMAP-Ordner "
+                "zugeordnet werden."
             )
 
-        with st.expander("Aktuelle IMAP-Ordnerstruktur anzeigen"):
-            folder_df = pd.DataFrame(
-                {"IMAP-Ordner": folders}
-            )
+        with st.expander(
+            "Aktuelle IMAP-Ordnerstruktur anzeigen"
+        ):
             st.dataframe(
-                folder_df,
+                pd.DataFrame({
+                    "IMAP-Ordner": folders
+                }),
                 use_container_width=True,
                 hide_index=True,
             )
@@ -1225,18 +1380,23 @@ elif st.session_state.step == 4:
         st.subheader("Zuordnung")
 
         selected = {}
-
-        # Leerer Eintrag erlaubt, fehlende Ordner sichtbar zu lassen.
-        options = ["— nicht zugeordnet —"] + folders
+        options = [
+            "— nicht zugeordnet —"
+        ] + folders
 
         for category in CATEGORIES:
+
             if category == "Unklar":
                 continue
 
-            suggested = current_mapping.get(category)
+            suggested = current_mapping.get(
+                category
+            )
 
             if suggested in folders:
-                default_index = options.index(suggested)
+                default_index = options.index(
+                    suggested
+                )
             else:
                 default_index = 0
 
@@ -1245,16 +1405,12 @@ elif st.session_state.step == 4:
                 options=options,
                 index=default_index,
                 key=f"folder_{category}",
-                help=(
-                    "Kategorie und Zielordner sind idealerweise identisch. "
-                    "Bei verschachtelten Ordnern wird auch der letzte "
-                    "Ordnername automatisch erkannt."
-                ),
             )
 
             selected[category] = (
                 None
-                if selected_value == "— nicht zugeordnet —"
+                if selected_value
+                == "— nicht zugeordnet —"
                 else selected_value
             )
 
@@ -1262,17 +1418,24 @@ elif st.session_state.step == 4:
 
         final_missing = [
             category
-            for category, folder in selected.items()
+            for category, folder
+            in selected.items()
             if not folder
         ]
 
         mapping_df = pd.DataFrame([
             {
-                "Kategorie / gewünschter Ordner": category,
-                "Zugewiesener IMAP-Ordner": folder or "FEHLT",
-                "Status": "OK" if folder else "FEHLT",
+                "Kategorie / gewünschter Ordner":
+                    category,
+                "Zugewiesener IMAP-Ordner":
+                    folder or "FEHLT",
+                "Status":
+                    "OK"
+                    if folder
+                    else "FEHLT",
             }
-            for category, folder in selected.items()
+            for category, folder
+            in selected.items()
         ])
 
         st.dataframe(
@@ -1285,14 +1448,16 @@ elif st.session_state.step == 4:
             st.error(
                 "Noch nicht zugeordnet: "
                 + ", ".join(final_missing)
-                + ". Lege diese Ordner in Thunderbird/auf dem IMAP-Server "
-                  "an und klicke danach auf „IMAP-Struktur erneut prüfen“."
+                + ". Die fehlenden Ordner können oben "
+                  "automatisch unter INBOX angelegt werden."
             )
 
         c1, c2 = st.columns(2)
 
         with c1:
-            if st.button("Zurück zur Klassifizierung"):
+            if st.button(
+                "Zurück zur Klassifizierung"
+            ):
                 st.session_state.step = 3
                 st.rerun()
 
@@ -1303,13 +1468,15 @@ elif st.session_state.step == 4:
                 use_container_width=True,
                 disabled=bool(final_missing),
             ):
-                st.session_state.rules = create_rule_preview(
+                rules = create_rule_preview(
                     senders=st.session_state.senders,
                     classifications=st.session_state.classifications,
                     category_to_folder=st.session_state.category_to_folder,
                     server=st.session_state.imap_server,
                     username=st.session_state.imap_username,
                 )
+
+                st.session_state.rules = rules
                 st.session_state.step = 5
                 st.rerun()
 

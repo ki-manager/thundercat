@@ -1,4 +1,4 @@
-# ThunderCat v4.6.1
+# ThunderCat v4.7
 
 ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
 daraus Thunderbird-Filterregeln.
@@ -204,3 +204,27 @@ Die ChatGPT-CSV-Hilfsfunktionen sind jetzt direkt in `app.py` definiert. Der Nam
 - ChatGPT ist voreingestellt.
 - Bei ChatGPT werden keine weiteren Provider-Optionen angezeigt.
 - Schritt 3 verwendet bei ChatGPT automatisch den CSV-Workflow.
+
+
+## Neu in v4.7
+
+Fehlende IMAP-Zielordner können in Schritt 4 automatisch direkt unterhalb von
+`INBOX` angelegt werden.
+
+Beispiele:
+
+```text
+INBOX/Rechnungen
+INBOX/Behörden
+INBOX/Newsletter
+INBOX/Konto & Sicherheit
+```
+
+ThunderCat erkennt den IMAP-Hierarchie-Trenner automatisch. Falls der Server
+statt `/` beispielsweise `.` verwendet, wird entsprechend `INBOX.Rechnungen`
+angelegt.
+
+Nach dem Erstellen liest ThunderCat die IMAP-Struktur sofort neu ein und
+führt die automatische Ordnerzuordnung erneut aus.
+
+`Unklar` wird bewusst nicht automatisch als Ordner angelegt.
