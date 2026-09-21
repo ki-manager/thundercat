@@ -1,0 +1,52 @@
+Analysiere die hochgeladene CSV-Datei mit E-Mail-Absendern.
+
+Ergänze für jede Zeile ausschließlich die bereits vorhandenen Spalten:
+
+Kategorie
+Sicherheit
+Begründung
+
+Verwende für Kategorie ausschließlich exakt einen der folgenden Werte:
+
+Persönlich
+Arbeit
+Bewerbungen
+Recruiter
+Jobportale
+Rechnungen
+Banken
+Versicherungen
+Behörden
+Schule & Bildung
+Termine
+Konto & Sicherheit
+Bestellungen
+Versand
+Shops
+Newsletter
+Werbung
+Verträge & Service
+System
+Kundenservice
+Spam
+Unklar
+
+Nutze für die Klassifizierung insbesondere:
+- Name
+- E-Mail
+- Domain
+- Betreff-Beispiele
+
+Regeln:
+- Persönlich nur für echte private Kommunikation.
+- Spam nur für eindeutig unerwünschte, betrügerische oder verdächtige Massenmails.
+- Werbung ist nicht automatisch Spam.
+- Sicherheits- und Login-Mails gehören zu Konto & Sicherheit.
+- Behörden wie ELSTER, Stadt, Landkreis oder öffentliche Stellen gehören zu Behörden.
+- Schule, IServ, Lernplattformen und Weiterbildung gehören zu Schule & Bildung.
+- Sicherheit muss als Dezimalzahl zwischen 0 und 1 angegeben werden.
+- Ändere keine bestehenden Werte in den anderen Spalten.
+- Entferne keine Zeilen.
+- Füge keine zusätzlichen Zeilen hinzu.
+
+Gib mir anschließend die vollständige bearbeitete CSV-Datei mit Semikolon als Trennzeichen zum Herunterladen zurück.

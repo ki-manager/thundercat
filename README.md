@@ -1,4 +1,4 @@
-# ThunderCat v4.1
+# ThunderCat v4.6
 
 ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
 daraus Thunderbird-Filterregeln.
@@ -87,3 +87,123 @@ Der Cache ist ab v4.1 an die neue Kategorieversion gebunden. Alte Klassifizierun
 aus früheren ThunderCat-Versionen werden daher nicht versehentlich wiederverwendet.
 
 Technische Fehler mit `Unklar` und Confidence 0 werden nicht dauerhaft gecacht.
+## Neu in v4.2: OpenAI-Diagnose
+
+Schritt 3 ist in drei klar sichtbare Aktionen getrennt:
+
+1. **Provider-Verbindung testen**
+2. **Einen Absender klassifizieren**
+3. **Gesamte Klassifizierung starten**
+
+Für OpenAI gelten standardmäßig:
+
+```text
+Batch-Größe: 5
+Timeout: 45 Sekunden
+SDK-Retries: 0
+```
+
+Die OpenAI-Klassifizierung verwendet Structured Outputs mit JSON Schema.
+Dadurch muss ThunderCat nicht auf frei formuliertes JSON hoffen.
+
+Zusätzlich zeigt die Oberfläche:
+
+- Status vor jedem API-Aufruf
+- Laufzeit jedes Batches
+- OpenAI Request-ID, sofern vorhanden
+- konkrete API-/Timeout-Fehler
+- Fortschritt und Cache-Zähler
+
+Cloud-Fehler werden nicht mehr rekursiv minutenlang mit immer kleineren
+Batches wiederholt. Ollama behält eine begrenzte lokale Batch-Aufteilung.
+
+Wenn ein einzelner Test-Absender erfolgreich klassifiziert wird, ist die
+grundsätzliche Provider-/Modell-/API-Key-Konfiguration funktionsfähig.
+## Neu in v4.3: Live-Ergebnisse
+
+Während der vollständigen KI-Klassifizierung zeigt Schritt 3 jetzt laufend die
+bereits verarbeiteten Absender an.
+
+Die Tabelle wird nach jedem klassifizierten Absender aktualisiert und enthält:
+
+- E-Mail-Adresse
+- Domain
+- Anzahl der gefundenen Nachrichten
+- Kategorie
+- Sicherheit
+- Begründung
+
+Zusätzlich wird der Stand direkt in der Überschrift angezeigt, z. B.:
+
+```text
+Aktuelle Klassifizierungsergebnisse (15/87)
+```
+
+Auch der Test mit einem einzelnen Absender zeigt das Ergebnis jetzt zusätzlich
+als Tabelle an.
+
+Nach einem erfolgreichen Verbindungstest weist ThunderCat ausdrücklich darauf
+hin, dass anschließend der Einzeltest oder der Gesamtlauf gestartet werden kann.
+## Neu in v4.4
+
+Die separaten Testschritte in Schritt 3 wurden wieder entfernt.
+
+Der Ablauf ist jetzt wieder einfacher:
+
+1. `Klassifizierung starten`
+2. ThunderCat prüft intern automatisch die Provider-Verbindung
+3. anschließend startet sofort die Klassifizierung
+4. die Ergebnisse werden live während der Verarbeitung angezeigt
+
+Die Live-Tabelle bleibt erhalten und zeigt nach jedem verarbeiteten
+Absender den aktuellen Stand.
+## Neu in v4.5: CSV-Klassifizierung über ChatGPT
+
+In Schritt 3 kann jetzt zwischen zwei Verfahren gewählt werden:
+
+### Direkt per KI-API
+
+- OpenAI
+- Gemini
+- Ollama
+- Live-Ergebnisse während der Verarbeitung
+
+### CSV über ChatGPT klassifizieren
+
+1. ThunderCat erzeugt eine CSV mit allen Absendern.
+2. Die CSV wird heruntergeladen.
+3. Die Datei wird in ChatGPT hochgeladen.
+4. ChatGPT ergänzt:
+   - Kategorie
+   - Sicherheit
+   - Begründung
+5. Die bearbeitete CSV wird wieder in ThunderCat hochgeladen.
+6. ThunderCat validiert die Datei.
+7. Die Klassifizierungen werden übernommen.
+8. Danach geht es wie gewohnt mit der automatischen Ordnerzuordnung weiter.
+
+ThunderCat prüft beim Import:
+
+- ob alle notwendigen Spalten vorhanden sind
+- ob alle ursprünglichen Absender wieder enthalten sind
+- ob doppelte Adressen vorhanden sind
+- ob nur erlaubte Kategorien verwendet wurden
+- ob die Sicherheit zwischen 0 und 1 liegt
+
+Die CSV verwendet Semikolon als Trennzeichen und UTF-8 mit BOM.
+
+
+## Fix v4.5.1
+
+Die ChatGPT-CSV-Hilfsfunktionen sind jetzt direkt in `app.py` definiert. Der NameError bei `build_chatgpt_export_df()` ist behoben.
+
+
+## Neu in v4.6
+
+ChatGPT ist jetzt der Standard-Provider in der linken Seitenleiste.
+
+Bei Auswahl von **ChatGPT** werden keine weiteren Provider-Einstellungen angezeigt:
+kein API-Key, kein Modell und keine Batch-Größe. Schritt 3 verwendet automatisch
+den CSV-Workflow.
+
+Bei **OpenAI**, **Gemini** und **Ollama** bleiben die bisherigen Einstellungen erhalten.
