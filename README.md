@@ -1,54 +1,62 @@
-# Thunderbird Ollama Mail Sorter – Streamlit
+# ThunderCat
+
+Streamlit-App zur Analyse und Sortierung von Thunderbird-/IMAP-Mails mit lokalem Ollama.
 
 ## Funktionen
 
-- IMAP-Zugangsdaten direkt in der Weboberfläche eingeben
-- Headerdaten des Postfachs auslesen
-- Absender und Domains als Tabelle anzeigen
-- lokale Klassifizierung über Ollama
-- Thunderbird-Regeln vorab prüfen
-- `msgFilterRules.dat` erst nach Bestätigung erzeugen
+1. IMAP-Zugangsdaten im Browser eingeben
+2. E-Mail-Header auslesen
+3. Absender prüfen
+4. Ollama-Klassifizierung mit Batch + Cache
+5. IMAP-Zielordner auswählen
+6. Thunderbird-Regeln prüfen
+7. `msgFilterRules.dat` herunterladen
 
 ## Installation
 
-```bash
+```powershell
 pip install -r requirements.txt
-ollama pull qwen3:4b
+ollama pull qwen3:1.7b
 ```
 
 ## Start
 
-```bash
-streamlit run app.py
+```powershell
+python -m streamlit run app.py
 ```
 
-Danach im Browser:
+Danach normalerweise:
 
 ```text
 http://localhost:8501
 ```
 
-## Ablauf
+## Logo
 
-1. IMAP-Zugang eingeben und Header auslesen
-2. Absender prüfen
-3. Ollama-Klassifizierung und Regelvorschau
-4. Filterdatei erzeugen und herunterladen
+Das Projekt enthält:
+
+```text
+assets/thundercat_logo.png
+assets/thundercat_icon.png
+```
+
+Das Logo wird im Seitenkopf mit 64 px Breite angezeigt.
 
 ## Datenschutz
 
-Das Tool liest nur:
+Der Nachrichtentext wird nicht gelesen. Verarbeitet werden nur:
 
 - Absendername
-- Absenderadresse
+- E-Mail-Adresse
 - Domain
 - einige Betreffzeilen
 
-Der Nachrichtentext wird nicht gelesen.
-Die Klassifizierung erfolgt lokal über Ollama.
+Ollama läuft lokal.
 
-## Thunderbird-Zielordner
+## Cache
 
-Passe `FOLDER_MAP` in `config.py` an dein tatsächliches IMAP-/Thunderbird-Konto an.
+Bereits analysierte Absender werden gespeichert in:
 
-Vor dem Ersetzen einer vorhandenen `msgFilterRules.dat` Thunderbird vollständig schließen und zuerst eine Sicherung der bestehenden Datei erstellen.
+```text
+cache/classification_cache.json
+```

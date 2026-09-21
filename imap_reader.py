@@ -6,31 +6,54 @@ from email.utils import parseaddr
 
 from mail_utils import decode_header_value, get_domain
 
+
 def connect_imap(server, port, username, password):
     if not server:
         raise ValueError("IMAP-Server fehlt.")
+
     if not username:
         raise ValueError("Benutzername fehlt.")
+
     if not password:
         raise ValueError("Passwort fehlt.")
-    imap = imaplib.IMAP4_SSL(server, int(port))
-    imap.login(username, password)
+
+    imap = imaplib.IMAP4_SSL(
+        server,
+        int(port),
+    )
+
+    imap.login(
+        username,
+        password,
+    )
+
     return imap
+
 
 def get_folders(imap):
     status, data = imap.list()
+
     if status != "OK":
         return ["INBOX"]
 
     folders = []
+
     for item in data:
         if not item:
             continue
+
         text = item.decode(errors="replace")
         match = re.search(r'"([^"]+)"$', text)
-        folder = match.group(1) if match else text.split()[-1].strip('"')
+
+        if match:
+            folder = match.group(1)
+        else:
+            folder = text.split()[-1].strip('"')
+
         folders.append(folder)
-    return folders
+
+    return sorted(set(folders))
+
 
 def scan_mail_headers(
     server,
@@ -42,16 +65,24 @@ def scan_mail_headers(
     progress_callback=None,
     status_callback=None,
 ):
-    imap = connect_imap(server, port, username, password)
+    imap = connect_imap(
+        server,
+        port,
+        username,
+        password,
+    )
+
     folders = get_folders(imap)
 
-    senders = defaultdict(lambda: {
-        "name": "",
-        "domain": "",
-        "count": 0,
-        "subjects": [],
-        "folders": set(),
-    })
+    senders = defaultdict(
+        lambda: {
+            "name": "",
+            "domain": "",
+            "count": 0,
+            "subjects": [],
+            "folders": set(),
+        }
+    )
 
     total = 0
     done = 0
@@ -60,19 +91,22 @@ def scan_mail_headers(
         for folder in folders:
             if status_callback:
                 status_callback(f"Lese Ordner: {folder}")
+
             try:
-                status, _ = imap.select(f'"{folder}"', readonly=True)
+                status, _ = imap.select(
+                    f'"{folder}"',
+                    readonly=True,
+                )
+
                 if status != "OK":
-                    done += 1
-                    if progress_callback:
-                        progress_callback(done, len(folders))
                     continue
 
-                status, data = imap.search(None, "ALL")
+                status, data = imap.search(
+                    None,
+                    "ALL",
+                )
+
                 if status != "OK":
-                    done += 1
-                    if progress_callback:
-                        progress_callback(done, len(folders))
                     continue
 
                 ids = data[0].split()
@@ -81,45 +115,63 @@ def scan_mail_headers(
                 for num in ids:
                     status, msg_data = imap.fetch(
                         num,
-                        "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT)])"
+                        "(BODY.PEEK[HEADER.FIELDS (FROM SUBJECT)])",
                     )
+
                     if status != "OK":
                         continue
 
                     raw = None
+
                     for part in msg_data:
                         if isinstance(part, tuple):
                             raw = part[1]
                             break
+
                     if not raw:
                         continue
 
                     msg = email.message_from_bytes(raw)
-                    raw_from = decode_header_value(msg.get("From", ""))
+
+                    raw_from = decode_header_value(
+                        msg.get("From", "")
+                    )
+
                     name, address = parseaddr(raw_from)
                     address = address.lower().strip()
+
                     if not address:
                         continue
 
                     name = decode_header_value(name)
-                    subject = decode_header_value(msg.get("Subject", ""))
+                    subject = decode_header_value(
+                        msg.get("Subject", "")
+                    )
 
                     info = senders[address]
+
                     info["name"] = info["name"] or name
                     info["domain"] = get_domain(address)
                     info["count"] += 1
                     info["folders"].add(folder)
 
-                    if subject and subject not in info["subjects"]:
-                        if len(info["subjects"]) < int(subjects_per_sender):
-                            info["subjects"].append(subject)
+                    if (
+                        subject
+                        and subject not in info["subjects"]
+                        and len(info["subjects"]) < int(subjects_per_sender)
+                    ):
+                        info["subjects"].append(subject)
 
                     total += 1
 
             finally:
                 done += 1
+
                 if progress_callback:
-                    progress_callback(done, len(folders))
+                    progress_callback(
+                        done,
+                        len(folders),
+                    )
 
     finally:
         try:
