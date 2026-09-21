@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from config import CACHE_FILE
+from config import CACHE_FILE, TAXONOMY_VERSION
 
 
 def load_cache():
@@ -11,48 +11,40 @@ def load_cache():
         return {}
 
     try:
-        return json.loads(
-            path.read_text(encoding="utf-8")
-        )
+        return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return {}
 
 
 def save_cache(cache):
     path = Path(CACHE_FILE)
-
-    path.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        json.dumps(
-            cache,
-            ensure_ascii=False,
-            indent=2,
-        ),
+        json.dumps(cache, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
 
-def make_cache_key(address, model):
-    return f"{model}|{address.lower().strip()}"
-
-
-def get_cached(cache, address, model):
-    return cache.get(
-        make_cache_key(
-            address,
-            model,
-        )
+def make_cache_key(provider, address, model):
+    return (
+        f"{TAXONOMY_VERSION}|"
+        f"{provider.lower()}|"
+        f"{model}|"
+        f"{address.lower().strip()}"
     )
 
 
-def set_cached(cache, address, model, result):
-    cache[
-        make_cache_key(
-            address,
-            model,
-        )
-    ] = result
+def get_cached(cache, provider, address, model):
+    return cache.get(make_cache_key(provider, address, model))
+
+
+def set_cached(cache, provider, address, model, result):
+    # Technische Fehlschläge/UNKLAR mit 0.0 nicht dauerhaft cachen,
+    # damit sie beim nächsten Lauf erneut versucht werden.
+    if (
+        result.get("category") == "Unklar"
+        and float(result.get("confidence", 0) or 0) <= 0
+    ):
+        return
+
+    cache[make_cache_key(provider, address, model)] = result

@@ -40,7 +40,7 @@ def create_rule_preview(
         result = classifications[address]
         category = result["category"]
 
-        if category == "UNKLAR":
+        if category == "Unklar":
             continue
 
         folder = category_to_folder.get(

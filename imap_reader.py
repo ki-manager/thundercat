@@ -180,3 +180,22 @@ def scan_mail_headers(
             pass
 
     return senders, total, folders
+
+
+
+def refresh_folder_structure(server, port, username, password):
+    """Liest die aktuelle IMAP-Ordnerstruktur erneut vom Server."""
+    imap = connect_imap(
+        server,
+        port,
+        username,
+        password,
+    )
+
+    try:
+        return get_folders(imap)
+    finally:
+        try:
+            imap.logout()
+        except Exception:
+            pass

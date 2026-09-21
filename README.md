@@ -1,21 +1,69 @@
-# ThunderCat
+# ThunderCat v4.1
 
-Streamlit-App zur Analyse und Sortierung von Thunderbird-/IMAP-Mails mit lokalem Ollama.
+ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
+daraus Thunderbird-Filterregeln.
 
-## Funktionen
+## Neu in v4.1
 
-1. IMAP-Zugangsdaten im Browser eingeben
-2. E-Mail-Header auslesen
-3. Absender prüfen
-4. Ollama-Klassifizierung mit Batch + Cache
-5. IMAP-Zielordner auswählen
-6. Thunderbird-Regeln prüfen
-7. `msgFilterRules.dat` herunterladen
+Die KI-Kategorien entsprechen jetzt direkt den gewünschten Ordnernamen:
+
+- Persönlich
+- Arbeit
+- Bewerbungen
+- Recruiter
+- Jobportale
+- Rechnungen
+- Banken
+- Versicherungen
+- Behörden
+- Schule & Bildung
+- Termine
+- Konto & Sicherheit
+- Bestellungen
+- Versand
+- Shops
+- Newsletter
+- Werbung
+- Verträge & Service
+- System
+- Kundenservice
+- Spam
+- Unklar
+
+### Schritt 4
+
+ThunderCat:
+
+1. liest die vorhandenen IMAP-Ordner,
+2. ordnet Kategorien automatisch passenden Ordnern zu,
+3. erkennt auch verschachtelte Ordner anhand des letzten Ordnernamens,
+4. zeigt fehlende Ordner deutlich an,
+5. kann die IMAP-Struktur per Button erneut direkt vom Server abrufen,
+6. verhindert die Erzeugung der Filterdatei, solange Zielordner fehlen.
+
+Beispiel:
+
+```text
+Kategorie: Rechnungen
+IMAP-Ordner: Finanzen/Rechnungen
+=> automatische Zuordnung
+```
+
+## Provider
+
+- OpenAI
+- Gemini
+- Ollama lokal
 
 ## Installation
 
 ```powershell
 pip install -r requirements.txt
+```
+
+Optional für Ollama:
+
+```powershell
 ollama pull qwen3:1.7b
 ```
 
@@ -25,38 +73,17 @@ ollama pull qwen3:1.7b
 python -m streamlit run app.py
 ```
 
-Danach normalerweise:
-
-```text
-http://localhost:8501
-```
-
-## Logo
-
-Das Projekt enthält:
-
-```text
-assets/thundercat_logo.png
-assets/thundercat_icon.png
-```
-
-Das Logo wird im Seitenkopf mit 64 px Breite angezeigt.
-
 ## Datenschutz
 
-Der Nachrichtentext wird nicht gelesen. Verarbeitet werden nur:
+ThunderCat liest nicht den vollständigen Nachrichtentext. Für die Analyse werden
+Absendername, E-Mail-Adresse, Domain und einige Beispiel-Betreffzeilen verwendet.
 
-- Absendername
-- E-Mail-Adresse
-- Domain
-- einige Betreffzeilen
-
-Ollama läuft lokal.
+Bei OpenAI oder Gemini werden diese Daten an den gewählten Cloud-Anbieter übertragen.
+Bei Ollama erfolgt die Klassifizierung lokal.
 
 ## Cache
 
-Bereits analysierte Absender werden gespeichert in:
+Der Cache ist ab v4.1 an die neue Kategorieversion gebunden. Alte Klassifizierungen
+aus früheren ThunderCat-Versionen werden daher nicht versehentlich wiederverwendet.
 
-```text
-cache/classification_cache.json
-```
+Technische Fehler mit `Unklar` und Confidence 0 werden nicht dauerhaft gecacht.
