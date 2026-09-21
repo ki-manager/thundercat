@@ -1,4 +1,4 @@
-# ThunderCat v4.7
+# ThunderCat v4.8
 
 ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
 daraus Thunderbird-Filterregeln.
@@ -228,3 +228,18 @@ Nach dem Erstellen liest ThunderCat die IMAP-Struktur sofort neu ein und
 führt die automatische Ordnerzuordnung erneut aus.
 
 `Unklar` wird bewusst nicht automatisch als Ordner angelegt.
+## Neu in v4.8: Schritt 4 vereinfacht
+
+Die automatische Ordnerzuordnung ist jetzt die einzige Quelle für die
+Thunderbird-Zielordner.
+
+- Der manuelle Abschnitt `Zuordnung` wurde entfernt.
+- `Fehlende Ordner unter INBOX anlegen` steht links.
+- `IMAP-Struktur erneut prüfen` steht rechts.
+- Automatisch erkannte Zuordnungen werden direkt in
+  `st.session_state.category_to_folder` übernommen.
+- `Weiter zur Regelvorschau` verwendet exakt diese automatische Zuordnung.
+- Bei fehlenden oder mehrdeutigen Ordnern ist `Weiter` deaktiviert.
+- Die Zuordnung kann optional in einem aufklappbaren Kontrollbereich
+  angezeigt werden.
+- Modified UTF-7 für IMAP-Ordner mit Umlauten ist integriert.
