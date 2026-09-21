@@ -16,3 +16,9 @@ Neu in v4.12:
 Neu in v4.13:
 - Nach erfolgreicher Klassifizierung führt ein eigener Button
   "Weiter zur Ordnerzuordnung" zu Schritt 4.
+
+
+Neu in v4.14:
+- E-Mail-Adressen aus ChatGPT-Antworten werden normalisiert.
+- Markdown-Mailto-Links werden automatisch auf reine E-Mail-Adressen reduziert.
+- Der Prompt verbietet Markdown-Links im Feld "email" ausdrücklich.

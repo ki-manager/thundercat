@@ -72,7 +72,12 @@ def import_chatgpt_classifications(
         )
 
     original_addresses = {
-        address.lower().strip()
+        normalize_email_address(address)
+        for address in senders.keys()
+    }
+
+    sender_lookup = {
+        normalize_email_address(address): address
         for address in senders.keys()
     }
 
@@ -136,6 +141,82 @@ def import_chatgpt_classifications(
 # Hilfsfunktionen für ChatGPT-Text/JSON
 # ---------------------------------------------------------
 
+
+
+def normalize_email_address(value):
+    """
+    Normalisiert E-Mail-Adressen aus ChatGPT-/JSON-Antworten.
+
+    Unterstützt u. a.:
+    - user@example.com
+    - <user@example.com>
+    - mailto:user@example.com
+    - [user@example.com](mailto:user@example.com)
+    - Groß-/Kleinschreibung
+    - umgebende Leerzeichen
+    - Zero-Width-Zeichen
+    """
+    value = str(value or "")
+
+    # Unsichtbare Unicode-Zeichen entfernen
+    value = re.sub(
+        r"[\u200b\u200c\u200d\u2060\ufeff]",
+        "",
+        value,
+    )
+
+    value = value.strip()
+
+    # Markdown-Mailto-Link:
+    # [user@example.com](mailto:user@example.com)
+    markdown_match = re.fullmatch(
+        r"\[([^\]]+)\]\(\s*mailto:([^)]+)\s*\)",
+        value,
+        flags=re.I,
+    )
+
+    if markdown_match:
+        value = markdown_match.group(2).strip()
+
+    # Falls ein normaler Markdown-Link mit der Adresse als Ziel vorkommt
+    markdown_generic = re.fullmatch(
+        r"\[([^\]]+)\]\(([^)]+)\)",
+        value,
+        flags=re.I,
+    )
+
+    if markdown_generic:
+        target = markdown_generic.group(2).strip()
+
+        if target.lower().startswith("mailto:"):
+            value = target[7:]
+        elif "@" in target:
+            value = target
+
+    value = re.sub(
+        r"^mailto:",
+        "",
+        value,
+        flags=re.I,
+    )
+
+    value = value.strip(
+        "<> \t\r\n\"'"
+    )
+
+    # Falls ChatGPT hinter der Adresse noch Text ergänzt hat,
+    # die erste plausible E-Mail-Adresse extrahieren.
+    email_match = re.search(
+        r"[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}",
+        value,
+        flags=re.I,
+    )
+
+    if email_match:
+        value = email_match.group(0)
+
+    return value.casefold()
+
 def build_chatgpt_json_prompt(senders, categories):
     items = []
 
@@ -187,6 +268,9 @@ Regeln:
 - Gib ausschließlich gültiges JSON zurück.
 - Verwende exakt dieselbe Reihenfolge wie in der Eingabe.
 - Keine Markdown-Codeblöcke und keinen zusätzlichen Text ausgeben.
+- E-Mail-Adressen niemals als Markdown-Link formatieren.
+- Das Feld email muss immer nur die reine Adresse enthalten, z. B. user@example.com.
+- Kein mailto:, keine spitzen Klammern und keine Markdown-Syntax im Feld email.
 
 Daten:
 
@@ -244,9 +328,9 @@ def parse_chatgpt_json_result(
         if not isinstance(item, dict):
             continue
 
-        address = str(
+        address = normalize_email_address(
             item.get("email", "")
-        ).lower().strip()
+        )
 
         if not address:
             continue
@@ -1102,9 +1186,18 @@ elif st.session_state.step == 3:
                     for address, classification in (
                         classifications.items()
                     ):
+                        original_sender_key = (
+                            sender_lookup.get(
+                                normalize_email_address(
+                                    address
+                                ),
+                                address,
+                            )
+                        )
+
                         sender_info = (
                             st.session_state.senders.get(
-                                address,
+                                original_sender_key,
                                 {},
                             )
                         )

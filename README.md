@@ -1,4 +1,4 @@
-# ThunderCat v4.13
+# ThunderCat v4.14
 
 ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
 daraus Thunderbird-Filterregeln.
@@ -292,3 +292,22 @@ Schritt 3 enthält jetzt unten einen klaren Navigationsbereich:
 
 Der Weiter-Button wird erst aktiv, wenn eine KI-/ChatGPT-Klassifizierung
 erfolgreich übernommen wurde.
+
+
+## Neu in v4.14: robuste E-Mail-Normalisierung
+
+Beim Import einer ChatGPT-JSON-Antwort werden E-Mail-Adressen jetzt automatisch
+bereinigt.
+
+Unterstützte Varianten sind zum Beispiel:
+
+- `christine@hoeke.net`
+- `<christine@hoeke.net>`
+- `mailto:christine@hoeke.net`
+- `[christine@hoeke.net](mailto:christine@hoeke.net)`
+
+Zusätzlich werden unsichtbare Unicode-Zeichen entfernt und Groß-/Kleinschreibung
+vereinheitlicht.
+
+Der ChatGPT-Prompt weist außerdem ausdrücklich darauf hin, E-Mail-Adressen nicht
+als Markdown-Link auszugeben.
