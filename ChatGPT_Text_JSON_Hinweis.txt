@@ -1,0 +1,7 @@
+ThunderCat v4.11 verwendet im ChatGPT-Modus standardmäßig Text/JSON.
+
+Der vollständige Prompt wird direkt in Schritt 3 automatisch erzeugt und enthält
+die aktuell gelesenen Absenderdaten. Deshalb gibt es keinen statischen Prompt,
+der separat gepflegt werden muss.
+
+Die CSV-Variante bleibt weiterhin als Alternative verfügbar.

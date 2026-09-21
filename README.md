@@ -1,4 +1,4 @@
-# ThunderCat v4.10
+# ThunderCat v4.11
 
 ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
 daraus Thunderbird-Filterregeln.
@@ -256,3 +256,16 @@ In Schritt 5 sind die umfangreichen Vorschauen standardmäßig eingeklappt:
 - `msgFilterRules.dat Vorschau`
 
 Die Erstellung der Filterdatei und die Thunderbird-Anleitung bleiben direkt sichtbar.
+## Neu in v4.11: ChatGPT per Text/JSON
+
+Für den Provider ChatGPT ist jetzt `Text / JSON kopieren` die Standardmethode.
+
+Ablauf:
+
+1. ThunderCat erzeugt einen vollständigen Prompt inklusive aller Absenderdaten.
+2. Den Text nach ChatGPT kopieren.
+3. ChatGPT ergänzt Kategorie, Sicherheit und Begründung.
+4. Die reine JSON-Antwort zurück in ThunderCat kopieren.
+5. ThunderCat validiert die Antwort und übernimmt die Klassifizierung.
+
+Die bisherige CSV-Methode bleibt als Alternative erhalten.

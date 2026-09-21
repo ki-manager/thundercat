@@ -1,4 +1,6 @@
 import time
+import json
+import re
 import pandas as pd
 import streamlit as st
 
@@ -126,6 +128,185 @@ def import_chatgpt_classifications(
         "missing_addresses": missing_addresses,
         "invalid_categories": invalid_categories,
         "duplicate_addresses": duplicate_addresses,
+    }
+
+
+
+# ---------------------------------------------------------
+# Hilfsfunktionen für ChatGPT-Text/JSON
+# ---------------------------------------------------------
+
+def build_chatgpt_json_prompt(senders, categories):
+    items = []
+
+    for address, info in sorted(
+        senders.items(),
+        key=lambda item: -item[1]["count"],
+    ):
+        items.append({
+            "email": address,
+            "name": info.get("name", ""),
+            "domain": info.get("domain", ""),
+            "count": info.get("count", 0),
+            "subjects": info.get("subjects", []),
+            "category": "",
+            "confidence": "",
+            "reason": "",
+        })
+
+    categories_text = "\n".join(
+        f"- {category}"
+        for category in categories
+    )
+
+    data_json = json.dumps(
+        items,
+        ensure_ascii=False,
+        indent=2,
+    )
+
+    prompt = f"""
+Analysiere die folgenden E-Mail-Absender und ergänze ausschließlich die Felder
+category, confidence und reason.
+
+Verwende für category ausschließlich exakt einen der folgenden Werte:
+
+{categories_text}
+
+Regeln:
+- Persönlich nur für echte private Kommunikation.
+- Spam nur für eindeutig unerwünschte, betrügerische oder verdächtige Massenmails.
+- Werbung ist nicht automatisch Spam.
+- Sicherheits- und Login-Mails gehören zu Konto & Sicherheit.
+- Behörden wie ELSTER, Stadt, Landkreis oder öffentliche Stellen gehören zu Behörden.
+- Schule, IServ, Lernplattformen und Weiterbildung gehören zu Schule & Bildung.
+- confidence muss als Dezimalzahl zwischen 0 und 1 angegeben werden.
+- Ändere email, name, domain, count und subjects nicht.
+- Entferne keine Einträge.
+- Füge keine Einträge hinzu.
+- Gib ausschließlich gültiges JSON zurück.
+- Verwende exakt dieselbe Reihenfolge wie in der Eingabe.
+- Keine Markdown-Codeblöcke und keinen zusätzlichen Text ausgeben.
+
+Daten:
+
+{data_json}
+""".strip()
+
+    return prompt
+
+
+def parse_chatgpt_json_result(
+    response_text,
+    senders,
+    categories,
+):
+    text = str(response_text or "").strip()
+
+    if not text:
+        raise ValueError(
+            "Es wurde keine ChatGPT-Antwort eingefügt."
+        )
+
+    # Falls trotzdem ein Markdown-Codeblock zurückgegeben wurde.
+    if text.startswith("```"):
+        text = re.sub(
+            r"^```(?:json)?\s*",
+            "",
+            text,
+            flags=re.I,
+        )
+        text = re.sub(
+            r"\s*```$",
+            "",
+            text,
+        )
+
+    data = json.loads(text)
+
+    if not isinstance(data, list):
+        raise ValueError(
+            "Die ChatGPT-Antwort muss eine JSON-Liste sein."
+        )
+
+    original_addresses = {
+        address.lower().strip()
+        for address in senders.keys()
+    }
+
+    classifications = {}
+    invalid_categories = []
+    duplicate_addresses = []
+    unknown_addresses = []
+    seen = set()
+
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+
+        address = str(
+            item.get("email", "")
+        ).lower().strip()
+
+        if not address:
+            continue
+
+        if address in seen:
+            duplicate_addresses.append(address)
+            continue
+
+        seen.add(address)
+
+        if address not in original_addresses:
+            unknown_addresses.append(address)
+            continue
+
+        category = str(
+            item.get("category", "")
+        ).strip()
+
+        if category not in categories:
+            invalid_categories.append(
+                (address, category)
+            )
+            category = "Unklar"
+
+        try:
+            confidence = float(
+                item.get("confidence", 0)
+            )
+        except Exception:
+            confidence = 0.0
+
+        confidence = max(
+            0.0,
+            min(
+                1.0,
+                confidence,
+            ),
+        )
+
+        reason = str(
+            item.get("reason", "")
+        ).strip()
+
+        classifications[address] = {
+            "category": category,
+            "confidence": confidence,
+            "reason": reason,
+        }
+
+    missing_addresses = sorted(
+        original_addresses
+        - set(classifications.keys())
+    )
+
+    return {
+        "classifications": classifications,
+        "missing_addresses": missing_addresses,
+        "invalid_categories": invalid_categories,
+        "duplicate_addresses": duplicate_addresses,
+        "unknown_addresses": unknown_addresses,
     }
 
 st.set_page_config(
@@ -617,342 +798,554 @@ elif st.session_state.step == 3:
                     )
 
     # =====================================================
-    # VARIANTE B: CSV ÜBER CHATGPT
+    # VARIANTE B: CHATGPT OHNE API
     # =====================================================
 
     else:
 
         st.subheader(
-            "CSV über ChatGPT klassifizieren"
+            "Klassifizierung über ChatGPT"
         )
 
-        st.write(
-            "Diese Variante benötigt keine direkte "
-            "OpenAI-API-Verbindung in ThunderCat. "
-            "Du lädst die Absenderliste herunter, "
-            "lässt sie in ChatGPT ergänzen und "
-            "importierst sie anschließend wieder."
+        chatgpt_transfer_mode = st.radio(
+            "Übertragungsart",
+            [
+                "Text / JSON kopieren",
+                "CSV-Datei",
+            ],
+            index=0,
+            horizontal=True,
         )
 
-        export_df = build_chatgpt_export_df(
-            st.session_state.senders
-        )
+        # -------------------------------------------------
+        # TEXT / JSON
+        # -------------------------------------------------
 
-        st.markdown(
-            "#### 1. CSV herunterladen"
-        )
+        if chatgpt_transfer_mode == "Text / JSON kopieren":
 
-        st.download_button(
-            "CSV für ChatGPT herunterladen",
-            data=export_df.to_csv(
-                index=False,
-                sep=";",
-            ).encode(
-                "utf-8-sig"
-            ),
-            file_name=(
-                "thundercat_chatgpt_"
-                "klassifizierung.csv"
-            ),
-            mime="text/csv",
-            type="primary",
-            use_container_width=True,
-        )
+            st.write(
+                "Du kopierst den kompletten Prompt inklusive "
+                "Absenderdaten nach ChatGPT und anschließend "
+                "die JSON-Antwort wieder zurück in ThunderCat."
+            )
 
-        st.dataframe(
-            export_df.head(20),
-            use_container_width=True,
-            hide_index=True,
-        )
+            st.markdown(
+                "#### 1. Prompt für ChatGPT"
+            )
 
-        st.caption(
-            f"{len(export_df)} Absender werden exportiert."
-        )
-
-        st.markdown(
-            "#### 2. CSV in ChatGPT hochladen"
-        )
-
-        chatgpt_prompt = """
-Analysiere die hochgeladene CSV-Datei mit E-Mail-Absendern.
-
-Ergänze für jede Zeile ausschließlich die bereits vorhandenen Spalten:
-
-Kategorie
-Sicherheit
-Begründung
-
-Verwende für Kategorie ausschließlich exakt einen der folgenden Werte:
-
-Persönlich
-Arbeit
-Bewerbungen
-Recruiter
-Jobportale
-Rechnungen
-Banken
-Versicherungen
-Behörden
-Schule & Bildung
-Termine
-Konto & Sicherheit
-Bestellungen
-Versand
-Shops
-Newsletter
-Werbung
-Verträge & Service
-System
-Kundenservice
-Spam
-Unklar
-
-Nutze für die Klassifizierung insbesondere:
-- Name
-- E-Mail
-- Domain
-- Betreff-Beispiele
-
-Regeln:
-- Persönlich nur für echte private Kommunikation.
-- Spam nur für eindeutig unerwünschte, betrügerische oder verdächtige Massenmails.
-- Werbung ist nicht automatisch Spam.
-- Sicherheits- und Login-Mails gehören zu Konto & Sicherheit.
-- Behörden wie ELSTER, Stadt, Landkreis oder öffentliche Stellen gehören zu Behörden.
-- Schule, IServ, Lernplattformen und Weiterbildung gehören zu Schule & Bildung.
-- Sicherheit muss als Dezimalzahl zwischen 0 und 1 angegeben werden.
-- Ändere keine bestehenden Werte in den anderen Spalten.
-- Entferne keine Zeilen.
-- Füge keine zusätzlichen Zeilen hinzu.
-
-Gib mir anschließend die vollständige bearbeitete CSV-Datei mit Semikolon als Trennzeichen zum Herunterladen zurück.
-""".strip()
-
-        st.code(
-            chatgpt_prompt,
-            language=None,
-        )
-
-        st.markdown(
-            "#### 3. Bearbeitete CSV wieder hochladen"
-        )
-
-        uploaded_file = st.file_uploader(
-            "Von ChatGPT ergänzte CSV auswählen",
-            type=["csv"],
-            key="chatgpt_classification_upload",
-        )
-
-        if uploaded_file is not None:
-
-            try:
-
-                imported_df = pd.read_csv(
-                    uploaded_file,
-                    sep=";",
-                    dtype=str,
-                    keep_default_na=False,
+            chatgpt_json_prompt = (
+                build_chatgpt_json_prompt(
+                    st.session_state.senders,
+                    CATEGORIES,
                 )
+            )
 
-                result = (
-                    import_chatgpt_classifications(
-                        imported_df=imported_df,
-                        senders=(
-                            st.session_state
-                            .senders
-                        ),
-                        categories=CATEGORIES,
-                    )
-                )
+            st.text_area(
+                "Kompletten Text kopieren und in ChatGPT einfügen",
+                value=chatgpt_json_prompt,
+                height=420,
+                key="chatgpt_json_prompt_text",
+            )
 
-                classifications = (
-                    result["classifications"]
-                )
+            st.caption(
+                f"{len(st.session_state.senders)} Absender "
+                "sind im Prompt enthalten."
+            )
 
-                missing_addresses = (
-                    result["missing_addresses"]
-                )
+            st.markdown(
+                "#### 2. JSON-Antwort aus ChatGPT einfügen"
+            )
 
-                invalid_categories = (
-                    result["invalid_categories"]
-                )
+            json_response = st.text_area(
+                "ChatGPT-Antwort",
+                value="",
+                height=360,
+                placeholder=(
+                    '[\n'
+                    '  {\n'
+                    '    "email": "portal@elster.de",\n'
+                    '    "name": "ELSTER",\n'
+                    '    "domain": "elster.de",\n'
+                    '    "count": 4,\n'
+                    '    "subjects": ["Neue Nachricht"],\n'
+                    '    "category": "Behörden",\n'
+                    '    "confidence": 0.99,\n'
+                    '    "reason": "Kommunikation der Finanzverwaltung."\n'
+                    '  }\n'
+                    ']'
+                ),
+                key="chatgpt_json_response_text",
+            )
 
-                duplicate_addresses = (
-                    result["duplicate_addresses"]
-                )
+            if json_response.strip():
 
-                col_a, col_b, col_c = st.columns(3)
+                try:
 
-                col_a.metric(
-                    "Importiert",
-                    len(classifications),
-                )
-
-                col_b.metric(
-                    "Fehlende Absender",
-                    len(missing_addresses),
-                )
-
-                col_c.metric(
-                    "Ungültige Kategorien",
-                    len(invalid_categories),
-                )
-
-                if duplicate_addresses:
-
-                    st.warning(
-                        "Doppelte E-Mail-Adressen in der "
-                        "importierten CSV:\n\n"
-                        + "\n".join(
-                            f"• {address}"
-                            for address
-                            in duplicate_addresses
+                    result = (
+                        parse_chatgpt_json_result(
+                            response_text=json_response,
+                            senders=(
+                                st.session_state.senders
+                            ),
+                            categories=CATEGORIES,
                         )
                     )
 
-                if invalid_categories:
-
-                    st.warning(
-                        "Diese Kategorien waren ungültig "
-                        "und wurden als „Unklar“ übernommen:\n\n"
-                        + "\n".join(
-                            f"• {address}: {category}"
-                            for (
-                                address,
-                                category,
-                            ) in invalid_categories
-                        )
+                    classifications = (
+                        result["classifications"]
                     )
 
-                if missing_addresses:
-
-                    st.error(
-                        f"{len(missing_addresses)} von "
-                        f"{len(st.session_state.senders)} "
-                        "Absendern fehlen in der "
-                        "bearbeiteten CSV."
+                    missing_addresses = (
+                        result["missing_addresses"]
                     )
 
-                    with st.expander(
-                        "Fehlende Absender anzeigen"
-                    ):
-                        st.code(
-                            "\n".join(
-                                missing_addresses
+                    invalid_categories = (
+                        result["invalid_categories"]
+                    )
+
+                    duplicate_addresses = (
+                        result["duplicate_addresses"]
+                    )
+
+                    unknown_addresses = (
+                        result["unknown_addresses"]
+                    )
+
+                    col_a, col_b, col_c = st.columns(3)
+
+                    col_a.metric(
+                        "Importiert",
+                        len(classifications),
+                    )
+
+                    col_b.metric(
+                        "Fehlende Absender",
+                        len(missing_addresses),
+                    )
+
+                    col_c.metric(
+                        "Ungültige Kategorien",
+                        len(invalid_categories),
+                    )
+
+                    if duplicate_addresses:
+                        st.warning(
+                            "Doppelte E-Mail-Adressen:\n\n"
+                            + "\n".join(
+                                f"• {address}"
+                                for address
+                                in duplicate_addresses
                             )
                         )
 
-                preview_rows = []
+                    if unknown_addresses:
+                        st.warning(
+                            "Unbekannte E-Mail-Adressen "
+                            "in der ChatGPT-Antwort:\n\n"
+                            + "\n".join(
+                                f"• {address}"
+                                for address
+                                in unknown_addresses
+                            )
+                        )
 
-                for address, classification in (
-                    classifications.items()
-                ):
+                    if invalid_categories:
+                        st.warning(
+                            "Ungültige Kategorien wurden "
+                            "als „Unklar“ übernommen:\n\n"
+                            + "\n".join(
+                                f"• {address}: {category}"
+                                for address, category
+                                in invalid_categories
+                            )
+                        )
 
-                    sender_info = (
-                        st.session_state
-                        .senders
-                        .get(
-                            address,
-                            {},
+                    if missing_addresses:
+                        st.error(
+                            f"{len(missing_addresses)} von "
+                            f"{len(st.session_state.senders)} "
+                            "Absendern fehlen in der Antwort."
+                        )
+
+                        with st.expander(
+                            "Fehlende Absender anzeigen"
+                        ):
+                            st.code(
+                                "\n".join(
+                                    missing_addresses
+                                )
+                            )
+
+                    preview_rows = []
+
+                    for address, classification in (
+                        classifications.items()
+                    ):
+                        sender_info = (
+                            st.session_state.senders.get(
+                                address,
+                                {},
+                            )
+                        )
+
+                        preview_rows.append({
+                            "E-Mail": address,
+                            "Domain": sender_info.get(
+                                "domain",
+                                "",
+                            ),
+                            "Anzahl": sender_info.get(
+                                "count",
+                                0,
+                            ),
+                            "Kategorie": classification[
+                                "category"
+                            ],
+                            "Sicherheit": classification[
+                                "confidence"
+                            ],
+                            "Begründung": classification[
+                                "reason"
+                            ],
+                        })
+
+                    preview_df = pd.DataFrame(
+                        preview_rows
+                    )
+
+                    if not preview_df.empty:
+                        with st.expander(
+                            "Import-Vorschau",
+                            expanded=False,
+                        ):
+                            st.dataframe(
+                                preview_df.sort_values(
+                                    [
+                                        "Kategorie",
+                                        "Anzahl",
+                                    ],
+                                    ascending=[
+                                        True,
+                                        False,
+                                    ],
+                                ),
+                                use_container_width=True,
+                                hide_index=True,
+                            )
+
+                    can_import = (
+                        len(classifications) > 0
+                        and len(missing_addresses) == 0
+                    )
+
+                    if st.button(
+                        "JSON-Klassifizierung übernehmen",
+                        type="primary",
+                        use_container_width=True,
+                        disabled=not can_import,
+                    ):
+
+                        st.session_state.classifications = (
+                            classifications
+                        )
+
+                        st.session_state.stats = {
+                            "total": len(
+                                classifications
+                            ),
+                            "cached": 0,
+                            "new": len(
+                                classifications
+                            ),
+                        }
+
+                        st.session_state.api_log = []
+
+                        st.session_state.live_results = (
+                            classifications.copy()
+                        )
+
+                        st.success(
+                            "ChatGPT-Klassifizierung "
+                            "wurde übernommen."
+                        )
+
+                        st.rerun()
+
+                except json.JSONDecodeError as exc:
+
+                    st.error(
+                        "Die eingefügte Antwort ist kein "
+                        f"gültiges JSON: {exc}"
+                    )
+
+                except Exception as exc:
+
+                    st.error(
+                        "ChatGPT-Antwort konnte nicht "
+                        f"verarbeitet werden: {exc}"
+                    )
+
+        # -------------------------------------------------
+        # CSV ALS ALTERNATIVE
+        # -------------------------------------------------
+
+        else:
+
+            st.write(
+                "Alternativ kannst du weiterhin eine CSV-Datei "
+                "herunterladen, in ChatGPT bearbeiten lassen "
+                "und anschließend wieder hochladen."
+            )
+
+            export_df = build_chatgpt_export_df(
+                st.session_state.senders
+            )
+
+            st.markdown(
+                "#### 1. CSV herunterladen"
+            )
+
+            st.download_button(
+                "CSV für ChatGPT herunterladen",
+                data=export_df.to_csv(
+                    index=False,
+                    sep=";",
+                ).encode(
+                    "utf-8-sig"
+                ),
+                file_name=(
+                    "thundercat_chatgpt_"
+                    "klassifizierung.csv"
+                ),
+                mime="text/csv",
+                type="primary",
+                use_container_width=True,
+            )
+
+            st.markdown(
+                "#### 2. CSV in ChatGPT klassifizieren"
+            )
+
+            chatgpt_prompt = """
+Analysiere die hochgeladene CSV-Datei mit E-Mail-Absendern.
+
+Ergänze ausschließlich die Spalten Kategorie, Sicherheit und Begründung.
+
+Verwende ausschließlich die in ThunderCat vorgegebenen Kategorien.
+Ändere keine bestehenden Werte, entferne keine Zeilen und füge keine hinzu.
+
+Gib anschließend die vollständige CSV-Datei mit Semikolon als Trennzeichen zurück.
+""".strip()
+
+            st.code(
+                chatgpt_prompt,
+                language=None,
+            )
+
+            st.markdown(
+                "#### 3. Bearbeitete CSV wieder hochladen"
+            )
+
+            uploaded_file = st.file_uploader(
+                "Von ChatGPT ergänzte CSV auswählen",
+                type=["csv"],
+                key="chatgpt_classification_upload",
+            )
+
+            if uploaded_file is not None:
+
+                try:
+
+                    imported_df = pd.read_csv(
+                        uploaded_file,
+                        sep=";",
+                        dtype=str,
+                        keep_default_na=False,
+                    )
+
+                    result = (
+                        import_chatgpt_classifications(
+                            imported_df=imported_df,
+                            senders=(
+                                st.session_state.senders
+                            ),
+                            categories=CATEGORIES,
                         )
                     )
 
-                    preview_rows.append({
-                        "E-Mail": address,
-                        "Domain": sender_info.get(
-                            "domain",
-                            "",
-                        ),
-                        "Anzahl": sender_info.get(
-                            "count",
-                            0,
-                        ),
-                        "Kategorie": (
-                            classification[
+                    classifications = (
+                        result["classifications"]
+                    )
+
+                    missing_addresses = (
+                        result["missing_addresses"]
+                    )
+
+                    invalid_categories = (
+                        result["invalid_categories"]
+                    )
+
+                    duplicate_addresses = (
+                        result["duplicate_addresses"]
+                    )
+
+                    col_a, col_b, col_c = st.columns(3)
+
+                    col_a.metric(
+                        "Importiert",
+                        len(classifications),
+                    )
+
+                    col_b.metric(
+                        "Fehlende Absender",
+                        len(missing_addresses),
+                    )
+
+                    col_c.metric(
+                        "Ungültige Kategorien",
+                        len(invalid_categories),
+                    )
+
+                    if duplicate_addresses:
+                        st.warning(
+                            "Doppelte E-Mail-Adressen:\n\n"
+                            + "\n".join(
+                                f"• {address}"
+                                for address
+                                in duplicate_addresses
+                            )
+                        )
+
+                    if invalid_categories:
+                        st.warning(
+                            "Ungültige Kategorien wurden "
+                            "als „Unklar“ übernommen:\n\n"
+                            + "\n".join(
+                                f"• {address}: {category}"
+                                for address, category
+                                in invalid_categories
+                            )
+                        )
+
+                    if missing_addresses:
+                        st.error(
+                            f"{len(missing_addresses)} von "
+                            f"{len(st.session_state.senders)} "
+                            "Absendern fehlen in der CSV."
+                        )
+
+                        with st.expander(
+                            "Fehlende Absender anzeigen"
+                        ):
+                            st.code(
+                                "\n".join(
+                                    missing_addresses
+                                )
+                            )
+
+                    preview_rows = []
+
+                    for address, classification in (
+                        classifications.items()
+                    ):
+                        sender_info = (
+                            st.session_state.senders.get(
+                                address,
+                                {},
+                            )
+                        )
+
+                        preview_rows.append({
+                            "E-Mail": address,
+                            "Domain": sender_info.get(
+                                "domain",
+                                "",
+                            ),
+                            "Anzahl": sender_info.get(
+                                "count",
+                                0,
+                            ),
+                            "Kategorie": classification[
                                 "category"
-                            ]
-                        ),
-                        "Sicherheit": (
-                            classification[
+                            ],
+                            "Sicherheit": classification[
                                 "confidence"
-                            ]
-                        ),
-                        "Begründung": (
-                            classification[
+                            ],
+                            "Begründung": classification[
                                 "reason"
-                            ]
-                        ),
-                    })
+                            ],
+                        })
 
-                preview_df = pd.DataFrame(
-                    preview_rows
-                )
-
-                if not preview_df.empty:
-
-                    st.subheader(
-                        "Import-Vorschau"
+                    preview_df = pd.DataFrame(
+                        preview_rows
                     )
 
-                    st.dataframe(
-                        preview_df.sort_values(
-                            [
-                                "Kategorie",
-                                "Anzahl",
-                            ],
-                            ascending=[
-                                True,
-                                False,
-                            ],
-                        ),
+                    if not preview_df.empty:
+                        with st.expander(
+                            "Import-Vorschau",
+                            expanded=False,
+                        ):
+                            st.dataframe(
+                                preview_df.sort_values(
+                                    [
+                                        "Kategorie",
+                                        "Anzahl",
+                                    ],
+                                    ascending=[
+                                        True,
+                                        False,
+                                    ],
+                                ),
+                                use_container_width=True,
+                                hide_index=True,
+                            )
+
+                    can_import = (
+                        len(classifications) > 0
+                        and len(missing_addresses) == 0
+                    )
+
+                    if st.button(
+                        "CSV-Klassifizierung übernehmen",
+                        type="primary",
                         use_container_width=True,
-                        hide_index=True,
-                    )
+                        disabled=not can_import,
+                    ):
 
-                can_import = (
-                    len(classifications) > 0
-                    and len(missing_addresses) == 0
-                )
-
-                if st.button(
-                    "Klassifizierung übernehmen",
-                    type="primary",
-                    use_container_width=True,
-                    disabled=not can_import,
-                ):
-
-                    st.session_state.classifications = (
-                        classifications
-                    )
-
-                    st.session_state.stats = {
-                        "total": len(
+                        st.session_state.classifications = (
                             classifications
-                        ),
-                        "cached": 0,
-                        "new": len(
-                            classifications
-                        ),
-                    }
+                        )
 
-                    st.session_state.api_log = []
-                    st.session_state.live_results = (
-                        classifications.copy()
+                        st.session_state.stats = {
+                            "total": len(
+                                classifications
+                            ),
+                            "cached": 0,
+                            "new": len(
+                                classifications
+                            ),
+                        }
+
+                        st.session_state.api_log = []
+
+                        st.session_state.live_results = (
+                            classifications.copy()
+                        )
+
+                        st.success(
+                            "CSV-Klassifizierung "
+                            "wurde übernommen."
+                        )
+
+                        st.rerun()
+
+                except Exception as exc:
+
+                    st.error(
+                        "CSV konnte nicht verarbeitet "
+                        f"werden: {exc}"
                     )
-
-                    st.success(
-                        "CSV-Klassifizierung "
-                        "wurde übernommen."
-                    )
-
-                    st.rerun()
-
-            except Exception as exc:
-
-                st.error(
-                    "CSV konnte nicht verarbeitet "
-                    f"werden: {exc}"
-                )
 
     # =====================================================
     # GEMEINSAME ERGEBNISANZEIGE
