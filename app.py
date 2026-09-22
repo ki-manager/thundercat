@@ -410,7 +410,7 @@ def build_category_message_counts(senders, classifications):
 def build_effective_folder_mapping(
     auto_mapping,
     category_message_counts,
-    minimum_messages=3,
+    minimum_messages=5,
     fallback_folder=None,
 ):
     result = {}
@@ -967,6 +967,15 @@ elif st.session_state.step == 3:
                 key="chatgpt_json_prompt_text",
             )
 
+            st.download_button(
+                "⬇️ Prompt als TXT herunterladen",
+                data=chatgpt_json_prompt.encode("utf-8-sig"),
+                file_name="thundercat_chatgpt_prompt.txt",
+                mime="text/plain",
+                use_container_width=True,
+                key="download_chatgpt_prompt_txt",
+            )
+
             st.components.v1.html(
                 """
                 <button
@@ -1025,6 +1034,34 @@ elif st.session_state.step == 3:
             st.markdown(
                 "#### 2. JSON-Antwort aus ChatGPT einfügen"
             )
+
+            uploaded_json_file = st.file_uploader(
+                "Fertige JSON-Datei aus ChatGPT hochladen",
+                type=["json"],
+                key="chatgpt_json_file_upload",
+                help=(
+                    "Die JSON-Datei muss dieselbe Liste von Absendern enthalten "
+                    "und die Felder category, confidence und reason ergänzen."
+                ),
+            )
+
+            uploaded_json_text = ""
+
+            if uploaded_json_file is not None:
+                try:
+                    uploaded_json_text = (
+                        uploaded_json_file
+                        .getvalue()
+                        .decode("utf-8-sig")
+                    )
+                    st.success(
+                        "JSON-Datei geladen. "
+                        "Die Daten werden automatisch geprüft."
+                    )
+                except Exception as exc:
+                    st.error(
+                        f"JSON-Datei konnte nicht gelesen werden: {exc}"
+                    )
 
             json_response = st.text_area(
                 "ChatGPT-Antwort",
@@ -1118,13 +1155,19 @@ elif st.session_state.step == 3:
                 height=45,
             )
 
-            if json_response.strip():
+            json_input = (
+                uploaded_json_text
+                if uploaded_json_text.strip()
+                else json_response
+            )
+
+            if json_input.strip():
 
                 try:
 
                     result = (
                         parse_chatgpt_json_result(
-                            response_text=json_response,
+                            response_text=json_input,
                             senders=(
                                 st.session_state.senders
                             ),

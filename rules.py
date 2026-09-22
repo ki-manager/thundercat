@@ -99,26 +99,60 @@ def escape_value(value):
 
 
 def generate_filter_text(rules):
+    """
+    Erzeugt genau eine Thunderbird-Regel pro Zielordner.
+
+    Alle Absender, die in denselben Ordner verschoben werden,
+    werden mit OR-Bedingungen zusammengefasst.
+    """
     lines = [
         'version="9"\n',
         'logging="no"\n',
     ]
 
+    grouped = {}
+
     for rule in rules:
-        name = (
-            f"{rule['category']} - "
-            f"{rule['email']}"
+        folder_uri = rule["folder_uri"]
+        folder = rule["folder"]
+
+        if folder_uri not in grouped:
+            grouped[folder_uri] = {
+                "folder": folder,
+                "emails": [],
+            }
+
+        email = rule["email"]
+
+        if email not in grouped[folder_uri]["emails"]:
+            grouped[folder_uri]["emails"].append(email)
+
+    for folder_uri, group in sorted(
+        grouped.items(),
+        key=lambda item: item[1]["folder"].casefold(),
+    ):
+        folder = group["folder"]
+        emails = sorted(
+            group["emails"],
+            key=str.casefold,
         )
 
-        condition = (
-            "OR "
-            f"(from,contains,"
-            f"{rule['email']})"
+        # Als Regelname nur den letzten Ordnernamen verwenden.
+        separator = "/"
+        rule_name = (
+            folder.split(separator)[-1]
+            if separator in folder
+            else folder
+        )
+
+        conditions = " ".join(
+            f"OR (from,contains,{email})"
+            for email in emails
         )
 
         lines.append("\n")
         lines.append(
-            f'name="{escape_value(name)}"\n'
+            f'name="{escape_value(rule_name)}"\n'
         )
         lines.append(
             'enabled="yes"\n'
@@ -131,11 +165,11 @@ def generate_filter_text(rules):
         )
         lines.append(
             f'actionValue="'
-            f'{escape_value(rule["folder_uri"])}"\n'
+            f'{escape_value(folder_uri)}"\n'
         )
         lines.append(
             f'condition="'
-            f'{escape_value(condition)}"\n'
+            f'{escape_value(conditions)}"\n'
         )
 
     return "".join(lines)

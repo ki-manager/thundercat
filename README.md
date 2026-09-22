@@ -1,4 +1,4 @@
-# ThunderCat v4.18
+# ThunderCat v4.19
 
 ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
 daraus Thunderbird-Filterregeln.
@@ -385,3 +385,31 @@ INBOX/Archiv/2026
 
 Andere Top-Level-Ordner wie `Sent`, `Trash`, `Drafts`, `Junk` oder `Archive`
 werden ignoriert.
+## Neu in v4.19
+
+### Eine Filterregel pro Zielordner
+
+Die erzeugte `msgFilterRules.dat` enthält jetzt nur noch eine Regel je
+Zielordner. Alle zugehörigen Absender werden als OR-Bedingungen zusammengefasst.
+
+Beispiel:
+
+```text
+name="Newsletter"
+enabled="yes"
+type="17"
+action="Move to folder"
+actionValue="imap://info%40ki38.de@imap.goneo.de/INBOX/Newsletter"
+condition="OR (from,contains,copilot@infomails.microsoft.com) OR (from,contains,newsblsk@mailing.blsk.de) OR (from,contains,noreply@securesafe.com)"
+```
+
+### ChatGPT-Dateiworkflow
+
+Im ChatGPT-Text/JSON-Modus kann jetzt:
+
+1. der vollständige Prompt als `thundercat_chatgpt_prompt.txt` heruntergeladen werden,
+2. die Klassifizierung in ChatGPT durchgeführt werden,
+3. die fertige JSON-Datei anschließend wieder in ThunderCat hochgeladen werden.
+
+Copy/Paste bleibt weiterhin möglich. Wenn eine JSON-Datei hochgeladen wurde,
+hat sie Vorrang vor dem Inhalt des Antwort-Textfelds.
