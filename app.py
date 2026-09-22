@@ -410,7 +410,7 @@ def build_category_message_counts(senders, classifications):
 def build_effective_folder_mapping(
     auto_mapping,
     category_message_counts,
-    minimum_messages=5,
+    minimum_messages=3,
     fallback_folder=None,
 ):
     result = {}
