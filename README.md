@@ -1,4 +1,4 @@
-# ThunderCat v4.17
+# ThunderCat v4.18
 
 ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
 daraus Thunderbird-Filterregeln.
@@ -367,3 +367,21 @@ imap://info%40ki38.de@imap.goneo.de/INBOX/Beh&APY-rden
 - `INBOX/Sonstiges` wird bei Bedarf automatisch angelegt.
 - `Unklar` erzeugt weiterhin keine Filterregel.
 - Schritt 4 zeigt die Nachrichtenzahl je Kategorie und den Zielordner.
+
+
+## Neu in v4.18: IMAP nur noch INBOX
+
+ThunderCat liest beim IMAP-Scan nur noch `INBOX` und deren Unterordner ein.
+
+Berücksichtigt werden zum Beispiel:
+
+```text
+INBOX
+INBOX/Persönlich
+INBOX/Behörden
+INBOX/Sonstiges
+INBOX/Archiv/2026
+```
+
+Andere Top-Level-Ordner wie `Sent`, `Trash`, `Drafts`, `Junk` oder `Archive`
+werden ignoriert.

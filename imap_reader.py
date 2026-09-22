@@ -176,6 +176,10 @@ def parse_list_response(item):
 
 
 def get_folders(imap):
+    """
+    Liefert ausschließlich INBOX und deren Unterordner.
+    Andere Top-Level-Ordner werden ignoriert.
+    """
     status, data = imap.list()
 
     if status != "OK":
@@ -187,16 +191,35 @@ def get_folders(imap):
         if not item:
             continue
 
-        _, folder = parse_list_response(
-            item
-        )
+        separator, folder = parse_list_response(item)
 
-        if folder:
+        if not folder:
+            continue
+
+        folder_cf = folder.casefold()
+
+        if folder_cf == "inbox":
             folders.append(folder)
+            continue
+
+        if separator:
+            prefix = "inbox" + separator.casefold()
+
+            if folder_cf.startswith(prefix):
+                folders.append(folder)
+
+    if not any(
+        folder.casefold() == "inbox"
+        for folder in folders
+    ):
+        folders.insert(0, "INBOX")
 
     return sorted(
         set(folders),
-        key=str.casefold,
+        key=lambda value: (
+            0 if value.casefold() == "inbox" else 1,
+            value.casefold(),
+        ),
     )
 
 
