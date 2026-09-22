@@ -175,10 +175,10 @@ def parse_list_response(item):
     )
 
 
-def get_folders(imap):
+def get_folders(imap, include_subfolders=True):
     """
-    Liefert ausschließlich INBOX und deren Unterordner.
-    Andere Top-Level-Ordner werden ignoriert.
+    Liefert ausschließlich INBOX und optional deren Unterordner.
+    Andere Top-Level-Ordner werden immer ignoriert.
     """
     status, data = imap.list()
 
@@ -202,7 +202,7 @@ def get_folders(imap):
             folders.append(folder)
             continue
 
-        if separator:
+        if include_subfolders and separator:
             prefix = "inbox" + separator.casefold()
 
             if folder_cf.startswith(prefix):
@@ -257,7 +257,10 @@ def refresh_folder_structure(
     )
 
     try:
-        return get_folders(imap)
+        return get_folders(
+            imap,
+            include_subfolders=True,
+        )
     finally:
         try:
             imap.logout()
@@ -288,7 +291,8 @@ def create_missing_folders_under_inbox(
         )
 
         existing_folders = get_folders(
-            imap
+            imap,
+            include_subfolders=True,
         )
 
         existing_lookup = {
@@ -372,6 +376,7 @@ def scan_mail_headers(
     password,
     max_mails_per_folder=5000,
     subjects_per_sender=5,
+    include_subfolders=True,
     progress_callback=None,
     status_callback=None,
 ):
@@ -382,7 +387,10 @@ def scan_mail_headers(
         password,
     )
 
-    folders = get_folders(imap)
+    folders = get_folders(
+        imap,
+        include_subfolders=include_subfolders,
+    )
 
     senders = defaultdict(
         lambda: {

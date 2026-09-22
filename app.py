@@ -454,6 +454,7 @@ DEFAULTS = {
     "imap_server": "imap.goneo.de",
     "imap_port": 993,
     "imap_username": "",
+    "imap_scope": "INBOX + Unterordner",
     "stats": None,
     "provider": "ChatGPT",
     "api_log": [],
@@ -473,6 +474,25 @@ with st.sidebar:
     imap_port = st.number_input("IMAP-Port", min_value=1, max_value=65535, value=int(st.session_state.imap_port))
     imap_username = st.text_input("Benutzername / E-Mail", value=st.session_state.imap_username, placeholder="name@example.de")
     imap_password = st.text_input("Passwort", type="password")
+
+    imap_scope_options = [
+        "Nur INBOX",
+        "INBOX + Unterordner",
+    ]
+    imap_scope = st.radio(
+        "IMAP-Ordner auslesen",
+        imap_scope_options,
+        index=(
+            imap_scope_options.index(st.session_state.imap_scope)
+            if st.session_state.imap_scope in imap_scope_options
+            else 1
+        ),
+        help=(
+            "Nur INBOX liest ausschließlich den Posteingang. "
+            "INBOX + Unterordner liest zusätzlich alle Ordner unterhalb von INBOX. "
+            "Andere Top-Level-Ordner werden nie berücksichtigt."
+        ),
+    )
 
     st.divider()
     st.subheader("KI-Provider")
@@ -522,7 +542,18 @@ st.info(f"Aktueller Schritt: {st.session_state.step} von 5")
 
 if st.session_state.step == 1:
     st.header("1. IMAP-Zugang und Header auslesen")
-    st.write("ThunderCat liest nur Absender, Domain und einige Betreffzeilen. Der vollständige Nachrichtentext wird nicht gelesen.")
+    st.write(
+        "ThunderCat liest nur Absender, Domain und einige Betreffzeilen. "
+        "Der vollständige Nachrichtentext wird nicht gelesen."
+    )
+    st.caption(
+        "Auswahl: "
+        + (
+            "Es wird ausschließlich INBOX analysiert."
+            if imap_scope == "Nur INBOX"
+            else "Es werden INBOX und alle Unterordner von INBOX analysiert."
+        )
+    )
 
     if st.button("IMAP testen und Header auslesen", type="primary", use_container_width=True):
         if not imap_server or not imap_username or not imap_password:
@@ -545,6 +576,9 @@ if st.session_state.step == 1:
                     password=imap_password,
                     max_mails_per_folder=max_mails,
                     subjects_per_sender=subjects_per_sender,
+                    include_subfolders=(
+                        imap_scope == "INBOX + Unterordner"
+                    ),
                     progress_callback=update_progress,
                     status_callback=update_status,
                 )
@@ -554,6 +588,7 @@ if st.session_state.step == 1:
                 st.session_state.imap_server = imap_server
                 st.session_state.imap_port = int(imap_port)
                 st.session_state.imap_username = imap_username
+                st.session_state.imap_scope = imap_scope
                 progress.progress(1.0)
                 status_box.success("IMAP-Auslesen abgeschlossen.")
                 st.success(f"{total} Mails analysiert, {len(senders)} eindeutige Absender gefunden.")

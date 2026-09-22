@@ -1,4 +1,4 @@
-# ThunderCat v4.19
+# ThunderCat v4.20
 
 ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
 daraus Thunderbird-Filterregeln.
@@ -413,3 +413,22 @@ Im ChatGPT-Text/JSON-Modus kann jetzt:
 
 Copy/Paste bleibt weiterhin möglich. Wenn eine JSON-Datei hochgeladen wurde,
 hat sie Vorrang vor dem Inhalt des Antwort-Textfelds.
+
+
+## Neu in v4.20: Auswahl des IMAP-Scanbereichs
+
+In der Seitenleiste kann gewählt werden:
+
+- `Nur INBOX`
+- `INBOX + Unterordner`
+
+Bei `Nur INBOX` wird ausschließlich der Posteingang analysiert.
+
+Bei `INBOX + Unterordner` werden der Posteingang und alle darunterliegenden
+Ordner analysiert.
+
+Andere Top-Level-Ordner wie `Sent`, `Trash`, `Drafts`, `Junk` oder `Archive`
+werden in beiden Fällen ignoriert.
+
+Die Ordnerprüfung in Schritt 4 sieht weiterhin alle vorhandenen Unterordner
+von `INBOX`, damit bestehende Zielordner korrekt erkannt werden können.
