@@ -1,4 +1,4 @@
-# ThunderCat v4.16
+# ThunderCat v4.17
 
 ThunderCat analysiert IMAP-Mailheader, klassifiziert Absender per KI und erzeugt
 daraus Thunderbird-Filterregeln.
@@ -356,3 +356,14 @@ Eine vollständige Ziel-URI sieht damit z. B. so aus:
 ```text
 imap://info%40ki38.de@imap.goneo.de/INBOX/Beh&APY-rden
 ```
+
+
+## Neu in v4.17: Ordner erst ab 5 Nachrichten
+
+- Eine Kategorie erhält nur dann einen eigenen IMAP-Ordner, wenn mindestens
+  5 vorhandene Nachrichten dieser Kategorie zugeordnet sind.
+- Kategorien mit 1 bis 4 Nachrichten werden automatisch nach
+  `INBOX/Sonstiges` verschoben.
+- `INBOX/Sonstiges` wird bei Bedarf automatisch angelegt.
+- `Unklar` erzeugt weiterhin keine Filterregel.
+- Schritt 4 zeigt die Nachrichtenzahl je Kategorie und den Zielordner.
